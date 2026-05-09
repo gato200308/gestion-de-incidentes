@@ -1,0 +1,12 @@
+[
+    {
+        "id": "IMP-69e80c0550da6",
+        "timestamp": "2026-04-21 18:45:09",
+        "title": "prueba",
+        "responsible": "PRUEBA",
+        "controls": "A.6",
+        "status": "Pendiente",
+        "notes": "a",
+        "admin_id": 1
+    }
+]

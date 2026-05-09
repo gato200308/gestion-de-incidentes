@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGI Pro - Gestión de Incidentes ISO 27001</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Alertas Flotantes (Toasts) -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Auth Wrapper -->
+    <div id="authContainer" class="auth-wrapper">
+        <!-- Login -->
+        <div id="loginSection" class="auth-card">
+            <div class="auth-header">
+                <i class="bi bi-shield-lock" style="font-size: 3rem; color: var(--indigo-500);"></i>
+                <h2>Acceso Seguro</h2>
+                <p>Sistema de Gestión ISO 27001</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label><i class="bi bi-person"></i> Usuario</label>
+                    <input type="text" id="loginUsername" required placeholder="Ingresa tu usuario">
+                </div>
+                <div class="form-group">
+                    <label><i class="bi bi-key"></i> Contraseña</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-primary w-100">Iniciar Sesión</button>
+            </form>
+            <p class="auth-switch">¿No tienes cuenta? <a href="#" id="showRegister">Regístrate como Analista</a></p>
+        </div>
+
+        <!-- Register -->
+        <div id="registerSection" class="auth-card" style="display: none;">
+            <div class="auth-header">
+                <i class="bi bi-shield-plus" style="font-size: 3rem; color: var(--indigo-500);"></i>
+                <h2>Nuevo Analista</h2>
+                <p>Registro de auditores y personal</p>
+            </div>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <input type="text" id="regUsername" required>
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="regEmail" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña (Mín. 8 caracteres)</label>
+                    <input type="password" id="regPassword" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label>Código de Invitación (Opcional)</label>
+                    <input type="text" id="regInviteCode" placeholder="Ej. SGI-X1Y2Z3">
+                    <small class="text-muted" style="font-size: 0.75rem; margin-top: 0.25rem;">Si tienes un código de tu administrador, úsalo para vincularte.</small>
+                </div>
+
+                <button type="submit" class="btn-primary w-100 mt-2">Registrarse</button>
+            </form>
+            <p class="auth-switch">¿Ya tienes cuenta? <a href="#" id="showLogin">Inicia Sesión</a></p>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboardContainer" class="app-shell" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="bi bi-shield-lock-fill"></i>
+                    <h2>SGI PRO</h2>
+                </div>
+            </div>
+            <nav class="nav-menu">
+
+                <button id="menuTraining" class="nav-item" onclick="showSection('trainingView')">
+                    <i class="bi bi-play-circle"></i> Capacitación
+                </button>
+                <button id="menuImplementation" class="nav-item" onclick="showSection('implementationView')">
+                    <i class="bi bi-check-square"></i> Implementación
+                </button>
+                <button id="menuAudit" class="nav-item" onclick="showSection('auditView')">
+                    <i class="bi bi-clipboard-check"></i> Auditoría
+                </button>
+                <button id="menuIncidents" class="nav-item" onclick="showSection('incidentsView')">
+                    <i class="bi bi-lightning-charge"></i> Gestión de Incidentes
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar" id="userInitial">U</div>
+                    <div class="user-info">
+                        <p class="fw-bold" id="sidebarUsername">Usuario</p>
+                        <p class="text-muted small" id="sidebarRole">Analista</p>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="btn-outline w-100"><i class="bi bi-box-arrow-right"></i> Cerrar Sesión</button>
+            </div>
+        </aside>
+
+        <main class="main-wrapper">
+            <!-- Navbar Superior -->
+            <header class="top-nav">
+                <div class="nav-brand">
+                    <h1 id="currentSectionTitle">Panel Global</h1>
+                </div>
+                <div class="nav-user">
+                    <span id="userCompanyBadge" class="role-badge bg-green-light text-green" style="display:none;"></span>
+                    <button id="adminBtn" class="btn-primary" style="display: none;"><i class="bi bi-gear"></i> Panel Admin</button>
+                </div>
+            </header>
+
+            <div class="main-content">
+                
+                <!-- [SECCIÓN 2] CAPACITACIÓN -->
+                <section id="trainingView" class="view-section">
+                    <div class="dashboard-header mb-4">
+                        <h2>Módulo de Capacitación</h2>
+                        <p class="text-muted">Formación en Seguridad de la Información ISO 27001</p>
+                    </div>
+
+                    <!-- Fila 1: Video + Checklist -->
+                    <div class="content-grid mb-4">
+                        <div class="left-col">
+                            <div class="card glass-card">
+                                <div class="card-header"><h4><i class="bi bi-play-btn"></i> Video de Formación</h4></div>
+                                <div class="video-container mt-3">
+                                    <iframe src="https://www.youtube.com/embed/iZNUDnf7QgQ" title="Capacitación ISO 27001" allowfullscreen></iframe>
+                                </div>
+                                <p class="mt-3 text-muted small">Este video cubre los conceptos básicos de la norma ISO 27001 y las responsabilidades del personal.</p>
+                            </div>
+                        </div>
+                        <div class="right-col">
+                            <div class="card glass-card">
+                                <div class="card-header"><h4><i class="bi bi-list-check"></i> Checklist de Concientización</h4></div>
+                                <div class="checklist-container mt-3" id="trainingChecklist">
+                                    <div class="checklist-item">
+                                        <input type="checkbox" id="check_video">
+                                        <div class="checklist-text"><h5>Visualización de Video</h5><p>He visto el video de inducción completo.</p></div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <input type="checkbox" id="check_policy">
+                                        <div class="checklist-text"><h5>Política de Seguridad</h5><p>He leído y comprendido la política general de seguridad.</p></div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <input type="checkbox" id="check_assets">
+                                        <div class="checklist-text"><h5>Gestión de Activos</h5><p>Conozco cómo clasificar y proteger los activos de información.</p></div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <input type="checkbox" id="check_incidents">
+                                        <div class="checklist-text"><h5>Reporte de Incidentes</h5><p>Sé cómo reportar un incidente de seguridad correctamente.</p></div>
+                                    </div>
+                                    <div class="checklist-item">
+                                        <input type="checkbox" id="check_access">
+                                        <div class="checklist-text"><h5>Control de Acceso</h5><p>Comprendo las reglas de acceso físico y lógico de la empresa.</p></div>
+                                    </div>
+                                </div>
+                                <button class="btn-primary w-100 mt-4" onclick="saveTrainingProgress()"><i class="bi bi-save"></i> Guardar Progreso</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fila 2: Registrar Sesión + Historial -->
+                    <div class="content-grid">
+                        <div class="left-col">
+                            <div class="card glass-card">
+                                <div class="card-header"><h4><i class="bi bi-calendar-plus"></i> Registrar Sesión de Capacitación</h4></div>
+                                <form id="trainingSessionForm" class="mt-3">
+                                    <div class="form-group">
+                                        <label>Título de la Sesión</label>
+                                        <input type="text" id="sessionTitle" placeholder="Ej. Inducción a ISO 27001" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Instructor / Responsable</label>
+                                        <input type="text" id="sessionInstructor" placeholder="Nombre del instructor">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Nº de Asistentes</label>
+                                        <input type="number" id="sessionAttendees" placeholder="0" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Temas Cubiertos</label>
+                                        <textarea id="sessionTopics" rows="3" placeholder="Ej. Políticas, control de acceso, reporte de incidentes..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn-primary w-100"><i class="bi bi-save"></i> Registrar Sesión</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="right-col">
+                            <div class="card glass-card">
+                                <div class="card-header"><h4><i class="bi bi-journal-bookmark"></i> Historial de Capacitaciones</h4></div>
+                                <div id="trainingSessionLog" class="timeline-container mt-3">
+                                    <p class="text-muted small text-center">Cargando sesiones...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- [SECCIÓN 3] IMPLEMENTACIÓN -->
+                <section id="implementationView" class="view-section">
+                    <div class="dashboard-header mb-4">
+                        <h2>Módulo de Implementación</h2>
+                        <p class="text-muted">Control de despliegue de políticas ISO 27001</p>
+                    </div>
+
+                    <!-- Fila 1: Formulario de Reunión + Historial -->
+                    <div class="content-grid mb-4">
+                        <div class="left-col">
+                            <div class="card glass-card">
+                                <div class="card-header"><h4><i class="bi bi-calendar-event"></i> Reunión de Implementación</h4></div>
+                                <form id="implMeetingForm" class="mt-3">
+                                    <div class="form-group">
+                                        <label>Título de la Reunión</label>
+                                        <input type="text" id="implMeetingTitle" placeholder="Ej. Kick-off Implementación SGSI" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Responsable</label>
+                                        <input type="text" id="implMeetingResp" placeholder="Nombre del implementador">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Controles ISO Tratados</label>
+                                        <input type="text" id="implMeetingControls" placeholder="Ej. A.5, A.6, A.8">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Estado de la Reunión</label>
+                                        <select id="implMeetingStatus">
+                                            <option value="Planificada">Planificada</option>
+                                            <option value="Realizada">Realizada</option>
+                                            <option value="Pendiente">Pendiente de Seguimiento</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Notas / Acuerdos</label>
+                                        <textarea id="implMeetingNotes" rows="3" placeholder="Ej. Se acordó implementar control de acceso en 30 días..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn-primary w-100"><i class="bi bi-save"></i> Registrar Reunión</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="right-col">
+                            <div class="card glass-card">
+                                <div class="card-header"><h4><i class="bi bi-journal-text"></i> Historial de Reuniones</h4></div>
+                                <div id="implMeetingLog" class="timeline-container mt-3">
+                                    <p class="text-muted small text-center">Cargando reuniones...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fila 2: Checklist de Controles ISO -->
+                    <div class="card glass-card">
+                        <div class="card-header"><h4><i class="bi bi-table"></i> Checklist de Controles ISO 27001</h4></div>
+                        <div class="table-container">
+                            <table class="modern-table">
+                                <thead>
+                                    <tr>
+                                        <th>Control / Categoría (ISO 27001)</th>
+                                        <th>Estado Actual</th>
+                                        <th>Última Revisión</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="implementationBody">
+                                    <!-- Inyectado desde el Excel -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- [SECCIÓN 4] AUDITORÍA -->
+                <section id="auditView" class="view-section">
+                    <div class="dashboard-header mb-4">
+                        <h2>Módulo de Auditoría Interna</h2>
+                        <p class="text-muted">Planificación, ejecución y registro de auditorías SGSI</p>
+                    </div>
+
+                    <div class="content-grid">
+                        <div class="left-col">
+                            <div class="card glass-card">
+                                <div class="card-header border-bottom"><h4><i class="bi bi-calendar-event"></i> Nueva Reunión de Auditoría</h4></div>
+                                <form id="auditMeetingForm" class="mt-3">
+                                    <div class="form-group">
+                                        <label>Tipo de Reunión</label>
+                                        <select id="auditType">
+                                            <option value="Apertura">Reunión de Apertura</option>
+                                            <option value="Cierre">Reunión de Cierre</option>
+                                            <option value="Seguimiento">Seguimiento de Hallazgos</option>
+                                            <option value="Revision">Revisión por la Dirección</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Auditor Responsable</label>
+                                        <input type="text" id="auditResponsible" placeholder="Nombre del auditor">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Temas Tratados</label>
+                                        <textarea id="auditTopics" rows="3" placeholder="Ej. Alcance de la auditoría, cronograma..."></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Hallazgos / Observaciones</label>
+                                        <textarea id="auditFindings" rows="3" placeholder="Ej. No conformidades, observaciones, oportunidades de mejora..."></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Estado de la Auditoría</label>
+                                        <select id="auditStatus">
+                                            <option value="Planificada">Planificada</option>
+                                            <option value="En Curso">En Curso</option>
+                                            <option value="Completada">Completada</option>
+                                            <option value="Cerrada">Cerrada con Hallazgos</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn-primary w-100">Registrar en Acta</button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="right-col">
+                            <div class="card glass-card">
+                                <div class="card-header border-bottom"><h4><i class="bi bi-journal-text"></i> Historial de Actas</h4></div>
+                                <div id="auditLog" class="timeline-container mt-3">
+                                    <!-- Inyectado -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- [SECCIÓN 5] INCIDENTES (EL ANTERIOR DASHVIEW + LISTVIEW) -->
+                <section id="incidentsView" class="view-section">
+                    <div class="dashboard-header mb-4">
+                        <div>
+                            <h2>Gestión de Incidentes</h2>
+                            <p class="text-muted">Monitoreo y respuesta a eventos de seguridad</p>
+                        </div>
+                        <div class="view-switcher">
+                            <button class="btn-switcher active" onclick="switchIncidentView('dash')"><i class="bi bi-pie-chart"></i> Analíticas</button>
+                            <button class="btn-switcher" onclick="switchIncidentView('list')"><i class="bi bi-list-ul"></i> Lista</button>
+                        </div>
+                    </div>
+
+                    <!-- [DASHBOARD VIEW] -->
+                    <div id="dashView" style="display: block;">
+                    <div class="stats-grid">
+                        <div class="stat-card kpi-main">
+                            <div class="stat-icon bg-indigo-light text-indigo"><i class="bi bi-activity"></i></div>
+                            <div class="stat-details">
+                                <p>Efectividad</p>
+                                <h3 id="kpiResolvedPercent">0%</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-red-light text-red"><i class="bi bi-lightning-charge"></i></div>
+                            <div class="stat-details">
+                                <p>Críticos</p>
+                                <h3 id="kpiCritical">0</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-yellow-light text-yellow"><i class="bi bi-hourglass-split"></i></div>
+                            <div class="stat-details">
+                                <p>Tiempo Prom.</p>
+                                <h3 id="kpiAvgTime">0h</h3>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-green-light text-green"><i class="bi bi-shield-check"></i></div>
+                            <div class="stat-details">
+                                <p>Total</p>
+                                <h3 id="kpiTotal">0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="content-grid">
+                        <div class="left-col">
+                            <section class="card glass-card">
+                                <div class="card-header border-bottom">
+                                    <h2><i class="bi bi-plus-circle"></i> Nuevo Incidente</h2>
+                                </div>
+                                <form id="incidentForm" class="mt-3">
+                                    <div class="form-group">
+                                        <label>Título</label>
+                                        <input type="text" id="title" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Descripción</label>
+                                        <textarea id="description" rows="3" required></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Clasificación</label>
+                                        <select id="classification" required>
+                                            <option value="Seguridad">Seguridad de la Info.</option>
+                                            <option value="Redes">Redes y Telecom</option>
+                                            <option value="Software">Fallo de Software</option>
+                                            <option value="Hardware">Fallo de Hardware</option>
+                                            <option value="Acceso">Control de Acceso</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group w-50">
+                                            <label>Probabilidad</label>
+                                            <select id="probability" required>
+                                                <option value="Baja">Baja</option>
+                                                <option value="Media">Media</option>
+                                                <option value="Alta">Alta</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group w-50">
+                                            <label>Impacto</label>
+                                            <select id="impact" required>
+                                                <option value="Bajo">Bajo</option>
+                                                <option value="Medio">Medio</option>
+                                                <option value="Alto">Alto</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div id="riskEstimation" class="mt-2 mb-3 p-2 border rounded text-center" style="display:none; background: rgba(99,102,241,0.05);">
+                                        <small class="text-muted d-block mb-1">Riesgo Estimado (ISO 27001):</small>
+                                        <span id="estimatedRiskBadge" class="badge">Bajo</span>
+                                    </div>
+                                    <button type="submit" class="btn-primary w-100 mt-2">Registrar</button>
+                                </form>
+                            </section>
+                        </div>
+                        <div class="right-col">
+                            <section class="card glass-card">
+                                <div class="card-header d-flex-between border-bottom">
+                                    <h2><i class="bi bi-table"></i> Registro</h2>
+                                    <div class="d-flex gap-2">
+                                        <select id="filterStatus" class="filter-select">
+                                            <option value="Todos">Todos los Estados</option>
+                                            <option value="Abierto">Abierto</option>
+                                            <option value="En Proceso">En Proceso</option>
+                                            <option value="Resuelto">Resuelto</option>
+                                            <option value="Cerrado">Cerrado</option>
+                                        </select>
+                                        <select id="filterRisk" class="filter-select">
+                                            <option value="Todos">Todos los Riesgos</option>
+                                            <option value="Bajo">Bajo</option>
+                                            <option value="Medio">Medio</option>
+                                            <option value="Alto">Alto</option>
+                                        </select>
+                                        <input type="text" id="searchBar" placeholder="Buscar..." class="filter-select">
+                                        <button id="refreshBtn" class="btn-icon"><i class="bi bi-arrow-clockwise"></i></button>
+                                    </div>
+                                </div>
+                                <div class="table-container mt-2">
+                                    <table class="modern-table" id="incidentsTable">
+                                        <thead>
+                                            <tr><th>Info</th><th>Riesgo</th><th>Estado</th><th>Acción</th></tr>
+                                        </thead>
+                                        <tbody id="incidentsBody"></tbody>
+                                    </table>
+                                    <div id="tableEmpty" class="text-center py-5 text-muted" style="display: none;">
+                                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                        <p>No se encontraron incidentes.</p>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Detalles Incidente -->
+    <div id="incidentModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalTitle">Detalle de Incidente</h2>
+                    <span id="modalIdBadge" class="badge bg-indigo-light text-indigo"></span>
+                </div>
+                <button id="closeModalBtn" class="btn-close"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-grid">
+                    <div class="modal-info">
+                        <h4>Descripción Inicial</h4>
+                        <p id="modalDesc" class="info-box"></p>
+                        
+                        <div class="info-metrics">
+                            <div class="metric">
+                                <small>Clasificación</small>
+                                <span id="modalClass" class="fw-bold"></span>
+                            </div>
+                            <div class="metric">
+                                <small>Prob / Impacto</small>
+                                <span id="modalProbImp" class="fw-bold"></span>
+                            </div>
+                            <div class="metric">
+                                <small>Riesgo Calculado</small>
+                                <span id="modalRisk"></span>
+                            </div>
+                            <div class="metric">
+                                <small>Reportado por</small>
+                                <span id="modalReporter" class="fw-bold"></span>
+                            </div>
+                        </div>
+
+                        <h4 class="mt-4">Plan de Mitigación / Evidencia</h4>
+                        <textarea id="modalMitigation" rows="4" placeholder="Describe las acciones tomadas para mitigar el impacto al negocio..." class="w-100"></textarea>
+                        
+                        <div class="modal-actions mt-3">
+                            <label class="d-block mb-1"><small>Actualizar Estado:</small></label>
+                            <div class="d-flex gap-2">
+                                <select id="modalStatusSelect" class="w-100">
+                                    <option value="Abierto">Devolver a Abierto</option>
+                                    <option value="En Proceso">Mover a En Proceso</option>
+                                    <option value="Resuelto">Marcar Resuelto</option>
+                                    <option value="Cerrado">Cerrar Definitivamente</option>
+                                </select>
+                                <button id="saveUpdateBtn" class="btn-primary flex-shrink-0"><i class="bi bi-save"></i> Guardar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timeline de Auditoría (ISO 27001) -->
+                    <div class="modal-timeline">
+                        <h4><i class="bi bi-clock-history"></i> Historial de Auditoría ISO</h4>
+                        <div class="timeline-container" id="modalTimeline">
+                            <!-- Inyectado por JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="adminContainer" class="dashboard-layout" style="display: none;">
+        <header class="top-nav">
+            <div class="nav-brand">
+                <i class="bi bi-gear-fill text-indigo" style="font-size: 1.8rem;"></i>
+                <div>
+                    <h1>Panel de Control Multi-Tenant</h1>
+                    <p class="text-muted small mt-1" id="adminInviteInfo"></p>
+                </div>
+            </div>
+            <button id="backToDashBtn" class="btn-outline btn-sm"><i class="bi bi-arrow-left"></i> Volver a Incidentes</button>
+        </header>
+        <main class="main-content">
+            <section class="card glass-card">
+                <h2><i class="bi bi-people"></i> Gestión de Usuarios SaaS</h2>
+                <p class="text-muted mb-3 mt-2">Asigna roles y empresas. Un Analista solo verá los incidentes que pertenezcan a su misma empresa.</p>
+                <div class="table-container">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>Usuario & Correo</th>
+                                <th>Rol en el Sistema</th>
+                                <th>Empresa Asignada (Tenant)</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersBody">
+                            <!-- JS inyecta usuarios -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

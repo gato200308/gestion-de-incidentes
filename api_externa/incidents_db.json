@@ -1,0 +1,74 @@
+[
+    {
+        "id": "INC-003",
+        "title": "",
+        "description": "",
+        "probability": "",
+        "impact": "",
+        "risk": "Desconocido",
+        "classification": "",
+        "empresa": "Sin Empresa",
+        "admin_id": null,
+        "status": "Abierto",
+        "reporter": "Sistema",
+        "assignee": "Sin Asignar",
+        "mitigation_plan": "",
+        "created_at": "2026-04-21 18:13:55",
+        "resolved_at": null,
+        "history": [
+            {
+                "timestamp": "2026-04-21 18:13:55",
+                "user": "Sistema",
+                "action": "Incidente reportado y clasificado con Riesgo: Desconocido"
+            }
+        ]
+    },
+    {
+        "id": "INC-002",
+        "title": "",
+        "description": "",
+        "probability": "",
+        "impact": "",
+        "risk": "Desconocido",
+        "classification": "",
+        "empresa": "Sin Empresa",
+        "admin_id": null,
+        "status": "Abierto",
+        "reporter": "Sistema",
+        "assignee": "Sin Asignar",
+        "mitigation_plan": "",
+        "created_at": "2026-04-21 18:13:38",
+        "resolved_at": null,
+        "history": [
+            {
+                "timestamp": "2026-04-21 18:13:38",
+                "user": "Sistema",
+                "action": "Incidente reportado y clasificado con Riesgo: Desconocido"
+            }
+        ]
+    },
+    {
+        "id": "INC-001",
+        "title": "",
+        "description": "",
+        "probability": "",
+        "impact": "",
+        "risk": "Desconocido",
+        "classification": "",
+        "empresa": "Sin Empresa",
+        "admin_id": null,
+        "status": "Abierto",
+        "reporter": "Sistema",
+        "assignee": "Sin Asignar",
+        "mitigation_plan": "",
+        "created_at": "2026-04-21 18:12:59",
+        "resolved_at": null,
+        "history": [
+            {
+                "timestamp": "2026-04-21 18:12:59",
+                "user": "Sistema",
+                "action": "Incidente reportado y clasificado con Riesgo: Desconocido"
+            }
+        ]
+    }
+]

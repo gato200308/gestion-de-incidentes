@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  sgi-pro-web:
+    build: .
+    container_name: sgi-pro-container
+    ports:
+      - "8000:80" # El profe entrará a http://localhost:8000
+    volumes:
+      # Monta la carpeta local para que cualquier cambio que hagas se refleje o se guarde en tu PC también
+      - .:/var/www/html
+    environment:
+      # Asegura que las fechas que guardan los JSON sean de Colombia (o tu zona horaria)
+      - TZ=America/Bogota
