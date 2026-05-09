@@ -1,4 +1,4 @@
-FROM php:8.2-apache
+FROM php:8.5.6RC3-fpm-alpine3.23
 
 # Copiar todo el código al directorio raíz del servidor web
 COPY . /var/www/html/
