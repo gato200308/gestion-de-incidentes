@@ -20,5 +20,4 @@ try {
     // Para entornos de producción (ISO 27001) no se debe mostrar el error real de DB.
     // Como esto es un proyecto de prueba, lo dejaremos visible en el error_log
     error_log($e->getMessage());
-    die(json_encode(["success" => false, "message" => "Error al conectar con la base de datos. Asegúrate de ejecutar database.sql en phpMyAdmin."]));
 }

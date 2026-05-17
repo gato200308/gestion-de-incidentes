@@ -60,12 +60,10 @@ function getSafeDbPath($module, $adminId, $empresa) {
     return __DIR__ . '/' . basename($filename);
 }
 
-if (!file_exists($db_file)) {
-    if (file_put_contents($db_file, json_encode([], JSON_PRETTY_PRINT)) === false) {
-        http_response_code(500);
-        echo json_encode(["success"=>false, "message" => "Error crítico: No se pudo inicializar la base de datos de incidentes."]);
-        exit();
-    }
+if (!file_exists($db_file) && file_put_contents($db_file, json_encode([], JSON_PRETTY_PRINT)) === false) {
+    http_response_code(500);
+    echo json_encode(["success"=>false, "message" => "Error crítico: No se pudo inicializar la base de datos de incidentes."]);
+    exit();
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -371,10 +369,8 @@ if ($method === 'GET') {
                 $incident['status'] = htmlspecialchars($data['status']);
                 $changes[] = "Estado de '$old_st' a '{$incident['status']}'";
                 
-                if ($incident['status'] === 'Resuelto' || $incident['status'] === 'Cerrado') {
-                    if (!$incident['resolved_at']) {
-                        $incident['resolved_at'] = $now;
-                    }
+                if (($incident['status'] === 'Resuelto' || $incident['status'] === 'Cerrado') && !$incident['resolved_at']) {
+                    $incident['resolved_at'] = $now;
                 }
             }
             if (isset($data['mitigation_plan']) && $data['mitigation_plan'] !== $incident['mitigation_plan']) {

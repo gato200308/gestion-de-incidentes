@@ -206,7 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handlePostLoginRedirect = (userRoles) => {
         const hasRole = (r) => userRoles.includes(r);
-        const isAdminLevel = hasRole('super_admin') || hasRole('admin');
 
         try {
             showDashboardView();
@@ -747,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(API_URL);
             const data = await res.json();
             
-            if (data && data.success === false) {
+            if (data?.success === false) {
                 const errMsg = data.debug_error || data.message || 'Error desconocido';
                 throw new Error(errMsg);
             }
@@ -759,15 +758,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast(`API: ${error.message}`, 'error');
             allIncidents = [];
             renderTable();
-        }
-    };
-
-    const updateDashboard = () => {
-        renderTable();
-        // Solo cargar analíticas si el contenedor de gráficas existe y es visible
-        const dashContainer = document.getElementById('dashView');
-        if (dashContainer && dashContainer.style.display !== 'none') {
-            loadDashboardData();
         }
     };
 
@@ -893,8 +883,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchIncidents();
             } else {
                 showToast(data.message || 'Error al guardar', 'error');
-            }
         } catch (err) {
+            console.error("Error reporting incident:", err);
             showToast('Fallo de conexión al enviar', 'error');
         } finally {
             btn.disabled = false;
@@ -970,9 +960,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchIncidents();
             } else {
                 showToast(data.message || 'Error al actualizar', 'error');
-            }
         } catch (err) {
-             showToast('Fallo al actualizar', 'error');
+            console.error("Error updating incident status/mitigation:", err);
+            showToast('Fallo al actualizar', 'error');
         } finally {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
