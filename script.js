@@ -8,9 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('registerForm');
     
     // User Elements
-    const userGreeting = document.getElementById('userGreeting');
-    const userRole = document.getElementById('userRole');
-    const userCompany = document.getElementById('userCompany');
     const logoutBtn = document.getElementById('logoutBtn');
     const adminBtn = document.getElementById('adminBtn');
     
@@ -21,8 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentSectionTitle = document.getElementById('currentSectionTitle');
     
     // Elementos de Incidentes (Restaurados)
-    const dashView = document.getElementById('dashView');
-    const listView = document.getElementById('listView');
     const searchBar = document.getElementById('searchBar');
     const filterStatus = document.getElementById('filterStatus');
     const filterRisk = document.getElementById('filterRisk');
@@ -31,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const incidentForm = document.getElementById('incidentForm');
     const refreshBtn = document.getElementById('refreshBtn');
     
-    window.showSection = (sectionId) => {
+    globalThis.showSection = (sectionId) => {
         const target = document.getElementById(sectionId);
         if (target) {
             allSections.forEach(sec => sec.classList.remove('active'));
@@ -43,28 +38,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = Array.from(navItems).find(i => i.getAttribute('onclick')?.includes(sectionId));
             if (btn) {
                 btn.classList.add('active');
-                if (currentSectionTitle) currentSectionTitle.textContent = btn.innerText.trim();
+                if (currentSectionTitle) {
+                    currentSectionTitle.textContent = btn.innerText.trim();
+                }
             }
 
             // Cargar datos de forma asíncrona pero sin bloquear la UI
-            setTimeout(() => {
+            setTimeout(async () => {
                 try {
-                    if (sectionId === 'incidentsView') fetchIncidents();
-                    if (sectionId === 'implementationView') loadImplementationList();
-                    if (sectionId === 'auditView') loadAuditHistory();
-                    if (sectionId === 'trainingView') loadTrainingProgress();
-                } catch (e) { console.error("Error en sección:", sectionId, e); }
+                    if (sectionId === 'incidentsView') {
+                        await fetchIncidents();
+                    }
+                    if (sectionId === 'implementationView') {
+                        await loadImplementationList();
+                    }
+                    if (sectionId === 'auditView') {
+                        await loadAuditHistory();
+                    }
+                    if (sectionId === 'trainingView') {
+                        await loadTrainingProgress();
+                    }
+                } catch (e) {
+                    console.error("Error en sección:", sectionId, e);
+                }
             }, 50);
         }
     };
-    
-    // KPI Elements
-    const kpiTotal = document.getElementById('kpiTotal');
-    const kpiCritical = document.getElementById('kpiCritical');
-    const kpiResolvedPercent = document.getElementById('kpiResolvedPercent');
-    const kpiAvgTime = document.getElementById('kpiAvgTime');
-    const aiInsightText = document.getElementById('aiInsightText');
-    const insightTrend = document.getElementById('insightTrend');
     
     // Admin Elements
     const adminContainer = document.getElementById('adminContainer');
@@ -88,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // State
     const API_URL = 'api.php';
-    let currentIncidents = [];
+    let allIncidents = [];
     let currentModalIncidentId = null;
     let charts = {}; // Store Chart instances
 
@@ -108,126 +107,162 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 4000);
     };
 
-    const toggleView = (showAuth, isLogin = true, showAdmin = false) => {
-        if (showAdmin) {
-            authContainer.style.display = 'none';
-            dashboardContainer.style.display = 'none';
-            adminContainer.style.display = 'block';
-        } else if (showAuth) {
-            authContainer.style.display = 'flex';
-            dashboardContainer.style.display = 'none';
-            adminContainer.style.display = 'none';
-            loginSection.style.display = isLogin ? 'block' : 'none';
-            registerSection.style.display = isLogin ? 'none' : 'block';
-        } else {
-            authContainer.style.display = 'none';
-            adminContainer.style.display = 'none';
-            dashboardContainer.style.display = 'flex'; // CORRECCIÓN: Usar flex para que el sidebar esté al lado
-        }
+    const showAuthView = (isLogin = true) => {
+        authContainer.style.display = 'flex';
+        dashboardContainer.style.display = 'none';
+        adminContainer.style.display = 'none';
+        loginSection.style.display = isLogin ? 'block' : 'none';
+        registerSection.style.display = isLogin ? 'none' : 'block';
+    };
+
+    const showDashboardView = () => {
+        authContainer.style.display = 'none';
+        adminContainer.style.display = 'none';
+        dashboardContainer.style.display = 'flex';
+    };
+
+    const showAdminView = () => {
+        authContainer.style.display = 'none';
+        dashboardContainer.style.display = 'none';
+        adminContainer.style.display = 'block';
     };
 
     // --- AUTH --- //
+    const getRoleDisplay = (role) => {
+        const roleMap = {
+            'super_admin': 'Owner / Super Admin',
+            'admin': 'Administrador',
+            'analyst': 'Analista de Riesgos',
+            'capacitador': 'Capacitador ISO',
+            'implementador': 'Implementador SGSI',
+            'auditor': 'Auditor Interno',
+            'user': 'Usuario Consulta'
+        };
+        
+        let roles = [];
+        try {
+            if (typeof role === 'string' && role.startsWith('[')) {
+                roles = JSON.parse(role);
+            } else if (Array.isArray(role)) {
+                roles = role;
+            } else {
+                roles = [role];
+            }
+        } catch (e) {
+            console.warn("Error parsing role:", e);
+            roles = [role];
+        }
+        
+        return Array.isArray(roles) ? roles.map(r => roleMap[r] || r).join(', ') : (roleMap[role] || role);
+    };
+
+    const updateSidebarProfile = (data) => {
+        const sidebarUsername = document.getElementById('sidebarUsername');
+        const sidebarRole = document.getElementById('sidebarRole');
+        const userInitial = document.getElementById('userInitial');
+        
+        if (sidebarUsername) {
+            sidebarUsername.textContent = data.username;
+        }
+        if (sidebarRole) {
+            sidebarRole.textContent = getRoleDisplay(data.role);
+        }
+        if (userInitial && data.username) {
+            userInitial.textContent = data.username.charAt(0).toUpperCase();
+        }
+
+        if (data.empresa) {
+            const companyBadge = document.getElementById('userCompanyBadge');
+            if (companyBadge) {
+                companyBadge.textContent = `🏢 ${data.empresa}`;
+                companyBadge.style.display = 'inline-block';
+            }
+        }
+    };
+
+    const updateMenuVisibility = (userRoles) => {
+        const hasRole = (r) => userRoles.includes(r);
+        const isAdminLevel = hasRole('super_admin') || hasRole('admin');
+
+        if (adminBtn) {
+            adminBtn.style.display = isAdminLevel ? 'inline-flex' : 'none';
+        }
+
+        const menuItems = {
+            'menuTraining':       ['super_admin', 'admin', 'capacitador'],
+            'menuImplementation': ['super_admin', 'admin', 'implementador'],
+            'menuAudit':          ['super_admin', 'admin', 'auditor'],
+            'menuIncidents':      ['super_admin', 'admin', 'analyst']
+        };
+
+        for (const [id, allowedRoles] of Object.entries(menuItems)) {
+            const item = document.getElementById(id);
+            if (item) {
+                const canSee = userRoles.some(r => allowedRoles.includes(r));
+                item.style.display = canSee ? 'flex' : 'none';
+            }
+        }
+    };
+
+    const handlePostLoginRedirect = (userRoles) => {
+        const hasRole = (r) => userRoles.includes(r);
+        const isAdminLevel = hasRole('super_admin') || hasRole('admin');
+
+        try {
+            showDashboardView();
+            if (hasRole('capacitador')) {
+                showSection('trainingView');
+            } else if (hasRole('implementador')) {
+                showSection('implementationView');
+            } else if (hasRole('auditor')) {
+                showSection('auditView');
+            } else if (hasRole('analyst')) {
+                showSection('incidentsView');
+            } else {
+                showSection('trainingView');
+            }
+        } catch (e) {
+            console.warn("Error en redirección post-login:", e);
+            if (dashboardContainer) {
+                dashboardContainer.style.display = 'flex';
+            }
+        }
+    };
+
     const checkSession = async () => {
         try {
             const res = await fetch('auth/check_session.php');
             const data = await res.json();
             if (data.success && data.logged_in) {
-                // Sidebar Profile
-                const sidebarUsername = document.getElementById('sidebarUsername');
-                const sidebarRole = document.getElementById('sidebarRole');
-                const userInitial = document.getElementById('userInitial');
-                if (sidebarUsername) sidebarUsername.textContent = data.username;
-                if (sidebarRole) {
-                    const roleMap = {
-                        'super_admin': 'Owner / Super Admin',
-                        'admin': 'Administrador',
-                        'analyst': 'Analista de Riesgos',
-                        'capacitador': 'Capacitador ISO',
-                        'implementador': 'Implementador SGSI',
-                        'auditor': 'Auditor Interno',
-                        'user': 'Usuario Consulta'
-                    };
-                    let roleDisplay = data.role;
-                    try {
-                        if (typeof data.role === 'string' && data.role.startsWith('[')) {
-                            const parsedRoles = JSON.parse(data.role);
-                            if (Array.isArray(parsedRoles)) {
-                                roleDisplay = parsedRoles.map(r => roleMap[r] || r).join(', ');
-                            }
-                        } else if (Array.isArray(data.role)) {
-                            roleDisplay = data.role.map(r => roleMap[r] || r).join(', ');
-                        } else {
-                            roleDisplay = roleMap[data.role] || data.role;
-                        }
-                    } catch(e) {
-                         roleDisplay = roleMap[data.role] || data.role;
-                    }
-                    sidebarRole.textContent = roleDisplay;
-                }
-                if (userInitial) userInitial.textContent = data.username.charAt(0).toUpperCase();
+                updateSidebarProfile(data);
 
-                if (data.empresa) {
-                    const companyBadge = document.getElementById('userCompanyBadge');
-                    if (companyBadge) {
-                        companyBadge.textContent = `🏢 ${data.empresa}`;
-                        companyBadge.style.display = 'inline-block';
-                    }
-                }
-
-                // Soporte multi-rol: el rol puede ser string simple o JSON array
                 let userRoles = [];
                 try {
-                    userRoles = Array.isArray(data.role) ? data.role
-                        : (typeof data.role === 'string' && data.role.startsWith('['))
-                            ? JSON.parse(data.role)
-                            : [data.role];
-                } catch(e) { userRoles = [data.role]; }
-
-                const hasRole = (r) => userRoles.includes(r);
-                const isAdminLevel = hasRole('super_admin') || hasRole('admin');
-
-                // Mostrar botón Admin si es admin o super_admin
-                if (adminBtn) adminBtn.style.display = isAdminLevel ? 'inline-flex' : 'none';
-
-                // Control de Visibilidad del Menú según Roles (Multi-rol)
-                const menuItems = {
-                    'menuTraining':       ['super_admin', 'admin', 'capacitador'],
-                    'menuImplementation': ['super_admin', 'admin', 'implementador'],
-                    'menuAudit':          ['super_admin', 'admin', 'auditor'],
-                    'menuIncidents':      ['super_admin', 'admin', 'analyst']
-                };
-
-                for (const [id, allowedRoles] of Object.entries(menuItems)) {
-                    const item = document.getElementById(id);
-                    if (item) {
-                        const canSee = userRoles.some(r => allowedRoles.includes(r));
-                        item.style.display = canSee ? 'flex' : 'none';
+                    if (Array.isArray(data.role)) {
+                        userRoles = data.role;
+                    } else if (typeof data.role === 'string' && data.role.startsWith('[')) {
+                        userRoles = JSON.parse(data.role);
+                    } else {
+                        userRoles = [data.role];
                     }
+                } catch (e) {
+                    console.warn("Error parsing roles:", e);
+                    userRoles = [data.role];
                 }
 
-                try {
-                    toggleView(false);
-                    // Redirección Inteligente: va al primer módulo disponible según roles
-                    if      (hasRole('capacitador'))    showSection('trainingView');
-                    else if (hasRole('implementador'))  showSection('implementationView');
-                    else if (hasRole('auditor'))        showSection('auditView');
-                    else if (hasRole('analyst'))        showSection('incidentsView');
-                    else if (isAdminLevel)              showSection('trainingView');
-                    else                                showSection('trainingView');
-                } catch (e) {
-                    console.warn("Error en redirección post-login:", e);
-                    if (dashboardContainer) dashboardContainer.style.display = 'flex';
-                }
+                updateMenuVisibility(userRoles);
+                handlePostLoginRedirect(userRoles);
             } else {
-                toggleView(true, true);
+                showAuthView(true);
             }
         } catch (error) {
-            toggleView(true, true);
+            console.error("Error checking session:", error);
+            showAuthView(true);
         }
     };
 
-    document.getElementById('showRegister').addEventListener('click', (e) => { e.preventDefault(); toggleView(true, false); });
-    document.getElementById('showLogin').addEventListener('click', (e) => { e.preventDefault(); toggleView(true, true); });
+    document.getElementById('showRegister').addEventListener('click', (e) => { e.preventDefault(); showAuthView(false); });
+    document.getElementById('showLogin').addEventListener('click', (e) => { e.preventDefault(); showAuthView(true); });
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -247,7 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 showToast(data.message || 'Error en login', 'error');
             }
-        } catch (error) { showToast('Error de conexión', 'error'); }
+        } catch (error) {
+            console.error("Error de login:", error);
+            showToast('Error de conexión', 'error');
+        }
     });
 
     registerForm.addEventListener('submit', async (e) => {
@@ -274,16 +312,23 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 showToast(data.message || 'Error al registrar', 'error');
             }
-        } catch (error) { showToast('Error de conexión', 'error'); }
+        } catch (error) {
+            console.error("Error al registrar:", error);
+            showToast('Error de conexión', 'error');
+        }
     });
 
     logoutBtn.addEventListener('click', async () => {
-        await fetch('auth/logout.php');
-        toggleView(true, true);
+        try {
+            await fetch('auth/logout.php');
+        } catch (error) {
+            console.error("Error al cerrar sesión:", error);
+        }
+        showAuthView(true);
     });
 
     // --- MODULE: INCIDENTS SUB-VIEWS --- //
-    window.switchIncidentView = (target) => {
+    globalThis.switchIncidentView = (target) => {
         const dView = document.getElementById('dashView');
         const lView = document.getElementById('listView');
         if (target === 'dash') {
@@ -304,31 +349,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             ['check_video','check_policy','check_assets','check_incidents','check_access'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el && data[id]) el.checked = true;
+                if (el && data[id]) {
+                    el.checked = true;
+                }
             });
-        } catch (e) {}
+        } catch (e) {
+            console.warn("Error loading training progress:", e);
+        }
         loadTrainingSessions();
     };
 
-    window.saveTrainingProgress = async () => {
+    globalThis.saveTrainingProgress = async () => {
         const state = {};
         ['check_video','check_policy','check_assets','check_incidents','check_access'].forEach(id => {
             const el = document.getElementById(id);
-            if (el) state[id] = el.checked;
+            if (el) {
+                state[id] = el.checked;
+            }
         });
         try {
             const res = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ module: 'training', state, admin_id: document.body.getAttribute('data-user-id') })
+                body: JSON.stringify({ module: 'training', state, admin_id: document.body.dataset.userId })
             });
-            if (res.ok) showToast('Progreso de capacitación guardado', 'success');
-        } catch (e) { showToast('Error al guardar', 'error'); }
+            if (res.ok) {
+                showToast('Progreso de capacitación guardado', 'success');
+            }
+        } catch (e) {
+            console.error("Error saving training progress:", e);
+            showToast('Error al guardar', 'error');
+        }
     };
 
     const loadTrainingSessions = async () => {
         const log = document.getElementById('trainingSessionLog');
-        if (!log) return;
+        if (!log) {
+            return;
+        }
         try {
             const res = await fetch(`${API_URL}?module=training_sessions`);
             const data = await res.json();
@@ -344,7 +402,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="timeline-action text-muted">${s.topics}</span>
                 </div>
             `).join('');
-        } catch (e) { if (log) log.innerHTML = '<p class="text-muted small">Error al cargar.</p>'; }
+        } catch (e) {
+            console.error("Error loading training sessions:", e);
+            if (log) {
+                log.innerHTML = '<p class="text-muted small">Error al cargar.</p>';
+            }
+        }
     };
 
     const trainingSessionForm = document.getElementById('trainingSessionForm');
@@ -352,7 +415,9 @@ document.addEventListener('DOMContentLoaded', () => {
         trainingSessionForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = document.getElementById('sessionTitle').value.trim();
-            if (!title) return showToast('Ingresa el título de la sesión', 'error');
+            if (!title) {
+                return showToast('Ingresa el título de la sesión', 'error');
+            }
             try {
                 await fetch(API_URL, {
                     method: 'POST',
@@ -363,13 +428,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         instructor: document.getElementById('sessionInstructor').value,
                         attendees: document.getElementById('sessionAttendees').value,
                         topics: document.getElementById('sessionTopics').value,
-                        admin_id: document.body.getAttribute('data-user-id')
+                        admin_id: document.body.dataset.userId
                     })
                 });
                 trainingSessionForm.reset();
                 showToast('Sesión de capacitación registrada', 'success');
                 loadTrainingSessions();
-            } catch (e) { showToast('Error al registrar sesión', 'error'); }
+            } catch (e) {
+                console.error("Error registering session:", e);
+                showToast('Error al registrar sesión', 'error');
+            }
         });
     }
 
@@ -403,11 +471,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     </select></td>
                 </tr>`;
             }).join('');
-        } catch (e) { showToast('Error cargando implementación', 'error'); }
+        } catch (e) {
+            console.error("Error loading implementation list:", e);
+            showToast('Error cargando implementación', 'error');
+        }
         loadImplMeetings();
     };
 
-    window.updateImplStatus = async (cat, status) => {
+    globalThis.updateImplStatus = async (cat, status) => {
         try {
             await fetch(API_URL, {
                 method: 'POST',
@@ -416,12 +487,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             showToast(`"${cat}" → ${status}`, 'success');
             loadImplementationList();
-        } catch (e) { showToast('Error al actualizar', 'error'); }
+        } catch (e) {
+            console.error("Error updating impl status:", e);
+            showToast('Error al actualizar', 'error');
+        }
     };
 
     const loadImplMeetings = async () => {
         const log = document.getElementById('implMeetingLog');
-        if (!log) return;
+        if (!log) {
+            return;
+        }
         try {
             const res = await fetch(`${API_URL}?module=impl_meetings`);
             const data = await res.json();
@@ -437,7 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="timeline-action text-muted">${m.notes}</span>
                 </div>
             `).join('');
-        } catch(e) { if(log) log.innerHTML = '<p class="text-muted small">Error al cargar.</p>'; }
+        } catch (e) {
+            console.error("Error loading implementation meetings:", e);
+            if (log) {
+                log.innerHTML = '<p class="text-muted small">Error al cargar.</p>';
+            }
+        }
     };
 
     const implMeetingForm = document.getElementById('implMeetingForm');
@@ -445,7 +526,9 @@ document.addEventListener('DOMContentLoaded', () => {
         implMeetingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const title = document.getElementById('implMeetingTitle').value.trim();
-            if (!title) return showToast('Ingresa el título de la reunión', 'error');
+            if (!title) {
+                return showToast('Ingresa el título de la reunión', 'error');
+            }
             try {
                 await fetch(API_URL, {
                     method: 'POST',
@@ -457,13 +540,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         controls: document.getElementById('implMeetingControls').value,
                         status: document.getElementById('implMeetingStatus').value,
                         notes: document.getElementById('implMeetingNotes').value,
-                        admin_id: document.body.getAttribute('data-user-id')
+                        admin_id: document.body.dataset.userId
                     })
                 });
                 implMeetingForm.reset();
                 showToast('Reunión de implementación registrada', 'success');
                 loadImplMeetings();
-            } catch(e) { showToast('Error al registrar reunión', 'error'); }
+            } catch (e) {
+                console.error("Error registering implementation meeting:", e);
+                showToast('Error al registrar reunión', 'error');
+            }
         });
     }
 
@@ -477,26 +563,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const findings = document.getElementById('auditFindings')?.value.trim() || '';
             const status = document.getElementById('auditStatus')?.value || 'Planificada';
             const responsible = document.getElementById('auditResponsible')?.value.trim() || '';
-            if (!topics) return showToast('Describa los temas tratados', 'error');
+            if (!topics) {
+                return showToast('Describa los temas tratados', 'error');
+            }
             try {
                 await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         module: 'audit', type, topics, findings, status, responsible,
-                        admin_id: document.body.getAttribute('data-user-id')
+                        admin_id: document.body.dataset.userId
                     })
                 });
                 auditMeetingForm.reset();
                 showToast(`Acta de ${type} registrada con éxito.`, 'success');
                 loadAuditHistory();
-            } catch (e) { showToast('Error al registrar acta', 'error'); }
+            } catch (e) {
+                console.error("Error registering audit log:", e);
+                showToast('Error al registrar acta', 'error');
+            }
         });
     }
 
     const loadAuditHistory = async () => {
         const log = document.getElementById('auditLog');
-        if (!log) return;
+        if (!log) {
+            return;
+        }
         log.innerHTML = '<p class="text-muted small text-center">Cargando historial...</p>';
         try {
             const res = await fetch(`${API_URL}?module=audit`);
@@ -514,7 +607,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${ev.responsible ? `<span class="timeline-action text-muted"><i class="bi bi-person"></i> Auditor: ${ev.responsible}</span>` : ''}
                 </div>
             `).join('');
-        } catch (e) { if(log) log.innerHTML = '<p class="text-muted small">Error al cargar actas.</p>'; }
+        } catch (e) {
+            console.error("Error loading audit history:", e);
+            if (log) {
+                log.innerHTML = '<p class="text-muted small">Error al cargar actas.</p>';
+            }
+        }
     };
 
     // --- DASHBOARD ANALYTICS --- //
@@ -526,6 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderDashboard(json.data);
             }
         } catch (error) {
+            console.error("Error loading dashboard data:", error);
             showToast('Error cargando analíticas', 'error');
         }
     };
@@ -882,18 +981,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ADMIN PANEL --- //
     adminBtn.addEventListener('click', () => {
-        toggleView(false, false, true);
+        showAdminView();
         loadAdminUsers();
     });
 
     backToDashBtn.addEventListener('click', () => {
-        toggleView(false);
+        showDashboardView();
         fetchIncidents();
     });
 
     const loadAdminUsers = async () => {
-        const myUserId = document.body.getAttribute('data-user-id');
-        const myCode = document.body.getAttribute('data-admin-code');
+        const myUserId = document.body.dataset.userId;
+        const myCode = document.body.dataset.adminCode;
         const userRoleEl = document.getElementById('sidebarRole');
         const isSuper = userRoleEl && (userRoleEl.textContent.includes('Owner') || userRoleEl.textContent.includes('Admin Global'));
         
@@ -910,7 +1009,9 @@ document.addEventListener('DOMContentLoaded', () => {
         usersBody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Cargando usuarios del sistema...</td></tr>';
         try {
             const res = await fetch('auth/admin_users.php');
-            if (!res.ok) throw new Error('Error al obtener lista de usuarios');
+            if (!res.ok) {
+                throw new Error('Error al obtener lista de usuarios');
+            }
             const data = await res.json();
             
             if (data.success) {
@@ -928,10 +1029,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Multi-rol: parsear roles actuales del usuario
                     let currentRoles = [];
                     try {
-                        currentRoles = Array.isArray(u.role) ? u.role
-                            : (typeof u.role === 'string' && u.role.startsWith('['))
-                                ? JSON.parse(u.role) : [u.role];
-                    } catch(e) { currentRoles = [u.role]; }
+                        if (Array.isArray(u.role)) {
+                            currentRoles = u.role;
+                        } else if (typeof u.role === 'string' && u.role.startsWith('[')) {
+                            currentRoles = JSON.parse(u.role);
+                        } else {
+                            currentRoles = [u.role];
+                        }
+                    } catch (e) {
+                        console.warn("Error parsing user roles in admin panel:", e);
+                        currentRoles = [u.role];
+                    }
 
                     const isSuperAdminUser = currentRoles.includes('super_admin');
                     const isAdminUser = currentRoles.includes('admin');
@@ -979,14 +1087,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 showToast(data.message, 'error');
             }
-        } catch(e) { 
-            console.error(e);
+        } catch (e) { 
+            console.error("Error loading admin users:", e);
             showToast('Error cargando gestión de usuarios', 'error'); 
         }
     };
 
     const saveUserAdmin = async (btn) => {
-        const id = btn.getAttribute('data-id');
+        const id = btn.dataset.id;
         const empresa = document.querySelector(`.admin-emp-input[data-id="${id}"]`).value;
 
         // Leer checkboxes multi-rol
@@ -1025,11 +1133,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 showToast(data.message, 'error');
             }
-        } catch(e) {
+        } catch (e) {
+            console.error("Error updating user admin:", e);
             showToast('Error de conexión', 'error');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-save"></i> Guardar';
+            btn.innerHTML = '<i class="bi bi-save"></i>';
         }
     };
 

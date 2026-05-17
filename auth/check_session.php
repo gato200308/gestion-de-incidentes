@@ -67,4 +67,3 @@ if (isset($_SESSION['user_id'])) {
         'message' => 'No hay sesión activa'
     ]);
 }
-?>

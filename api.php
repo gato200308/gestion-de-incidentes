@@ -5,7 +5,6 @@
 session_start();
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -13,7 +12,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-function call_external_api($method, $data = null, $queryString = "")
+function callExternalApi($method, $data = null, $queryString = "")
 {
     // Intentamos 127.0.0.1 que es lo más seguro en Linux
     $url = "http://127.0.0.1:8001/api_externa/index.php" . $queryString;
@@ -45,15 +44,19 @@ $rolesArr = (str_starts_with($_SESSION['role'] ?? '', '[')) ? json_decode($_SESS
 $isAdmin = is_array($rolesArr) && count(array_intersect($rolesArr, ['super_admin', 'admin'])) > 0;
 
 $effectiveAdminId = $isAdmin ? $_SESSION['user_id'] : $_SESSION['vinculado_a_admin_id'];
-
 $requestStats = isset($_GET['stats']) && $_GET['stats'] === 'true';
 $requestModule = isset($_GET['module']) ? $_GET['module'] : 'incidents';
 $queryString = "?admin_id=" . ($effectiveAdminId ?? 'NULL');
-if ($requestStats) $queryString .= "&stats=true";
-if ($requestModule !== 'incidents') $queryString .= "&module=" . urlencode($requestModule);
 
-if (!$isAdmin) {
-    if (!empty($_SESSION['empresa'])) $queryString .= "&empresa=" . urlencode($_SESSION['empresa']);
+if ($requestStats) {
+    $queryString .= "&stats=true";
+}
+if ($requestModule !== 'incidents') {
+    $queryString .= "&module=" . urlencode($requestModule);
+}
+
+if (!$isAdmin && !empty($_SESSION['empresa'])) {
+    $queryString .= "&empresa=" . urlencode($_SESSION['empresa']);
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -69,12 +72,12 @@ if ($method === 'POST' || $method === 'PUT') {
     }
 }
 
-$response = call_external_api($method, $postData, $queryString);
+$response = callExternalApi($method, $postData, $queryString);
 
 if (isset($response['error'])) {
     http_response_code(500);
     echo json_encode([
-        "success" => false, 
+        "success" => false,
         "debug_error" => $response['error'],
         "debug_url" => $response['url'],
         "message" => "Error de conexión interna entre servidores."

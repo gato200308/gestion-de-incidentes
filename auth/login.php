@@ -51,4 +51,3 @@ try {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Error interno en la base de datos']);
 }
-?>

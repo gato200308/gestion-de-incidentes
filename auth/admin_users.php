@@ -1,5 +1,5 @@
 <?php
-require '../db_connect.php';
+require_once '../db_connect.php';
 session_start();
 
 header('Content-Type: application/json; charset=utf-8');
@@ -23,8 +23,8 @@ if ($method === 'GET') {
     // [LISTAR USUARIOS]
     try {
         // Filtro Estricto: Solo ves a los usuarios vinculados directamente a tu cuenta (Privacidad Total)
-        $stmt = $pdo->prepare("SELECT id, username, email, role, empresa, vinculado_a_admin_id, created_at FROM users 
-                             WHERE vinculado_a_admin_id = ? 
+        $stmt = $pdo->prepare("SELECT id, username, email, role, empresa, vinculado_a_admin_id, created_at FROM users
+                             WHERE vinculado_a_admin_id = ?
                              ORDER BY created_at DESC");
         $stmt->execute([$_SESSION['user_id']]);
         
@@ -86,10 +86,8 @@ if ($method === 'GET') {
                 exit();
             }
             // d. Si cambias la empresa y NO es un vinculado directo, solo puedes poner la TUYA
-            if (!$esVinculadoMio) {
-                if ($requestedEmpresa !== $_SESSION['empresa'] && $requestedEmpresa !== null) {
-                    $requestedEmpresa = $_SESSION['empresa'];
-                }
+            if (!$esVinculadoMio && $requestedEmpresa !== $_SESSION['empresa'] && $requestedEmpresa !== null) {
+                $requestedEmpresa = $_SESSION['empresa'];
             }
             // Si ES un vinculado, permitimos que el Admin le ponga CUALQUIER empresa (Flexibilidad Multi-tenant)
         }
@@ -100,8 +98,9 @@ if ($method === 'GET') {
             // Puede ser un string JSON como '["capacitador","auditor"]'
             if (is_string($requestedRole) && str_starts_with($requestedRole, '[')) {
                 $rolesArr = json_decode($requestedRole, true);
-                if (!is_array($rolesArr)) $requestedRole = '[]';
-                else {
+                if (!is_array($rolesArr)) {
+                    $requestedRole = '[]';
+                } else {
                     // Filtrar solo roles válidos del array
                     $rolesArr = array_values(array_filter($rolesArr, fn($r) => in_array($r, $validSingle)));
                     $requestedRole = json_encode($rolesArr);

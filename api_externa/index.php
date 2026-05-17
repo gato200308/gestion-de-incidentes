@@ -5,23 +5,59 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *'); 
-header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+
+define('TIMEZONE_BOGOTA', 'America/Bogota');
+define('DATE_FORMAT_STANDARD', 'Y-m-d H:i:s');
 
 $db_file = __DIR__ . '/incidents_db.json';
 
 function calculateRisk($prob, $imp) {
-    if (!$prob || !$imp) return 'Desconocido';
-    $probMap = ['Baja'=>1, 'Media'=>2, 'Alta'=>3];
-    $impMap = ['Bajo'=>1, 'Medio'=>2, 'Alto'=>3];
-    $p = isset($probMap[$prob]) ? $probMap[$prob] : 1;
-    $i = isset($impMap[$imp]) ? $impMap[$imp] : 1;
+    $result = 'Desconocido';
+    if ($prob && $imp) {
+        $probMap = ['Baja'=>1, 'Media'=>2, 'Alta'=>3];
+        $impMap = ['Bajo'=>1, 'Medio'=>2, 'Alto'=>3];
+        $p = isset($probMap[$prob]) ? $probMap[$prob] : 1;
+        $i = isset($impMap[$imp]) ? $impMap[$imp] : 1;
+        
+        $score = $p * $i;
+        if ($score >= 6) {
+            $result = 'Alto';
+        } elseif ($score >= 3) {
+            $result = 'Medio';
+        } else {
+            $result = 'Bajo';
+        }
+    }
+    return $result;
+}
+
+function getSafeDbPath($module, $adminId, $empresa) {
+    $allowedModules = ['training', 'training_sessions', 'impl_meetings', 'implementation', 'audit'];
+    if (!in_array($module, $allowedModules)) {
+        throw new InvalidArgumentException("Módulo no válido");
+    }
     
-    $score = $p * $i;
-    if ($score >= 6) return 'Alto';
-    if ($score >= 3) return 'Medio';
-    return 'Bajo';
+    $cleanAdminId = preg_replace('/[^a-zA-Z0-9]/', '', (string)$adminId);
+    if ($cleanAdminId === '') {
+        $cleanAdminId = 'global';
+    }
+    
+    $cleanEmpresa = '';
+    if ($empresa !== null) {
+        $cleanEmpresa = preg_replace('/[^a-zA-Z0-9]/', '', (string)$empresa);
+        if ($cleanEmpresa !== '') {
+            $cleanEmpresa = '_' . strtolower($cleanEmpresa);
+        }
+    }
+    
+    $filename = "{$module}_db_{$cleanAdminId}{$cleanEmpresa}.json";
+    if ($module === 'training_sessions') {
+        $filename = "training_sessions_{$cleanAdminId}{$cleanEmpresa}.json";
+    } elseif ($module === 'impl_meetings') {
+        $filename = "impl_meetings_{$cleanAdminId}{$cleanEmpresa}.json";
+    }
+    
+    return __DIR__ . '/' . basename($filename);
 }
 
 if (!file_exists($db_file)) {
@@ -40,37 +76,38 @@ if ($method === 'OPTIONS') {
 }
 
 $current_data = json_decode(file_get_contents($db_file), true);
-if (!is_array($current_data)) $current_data = [];
+if (!is_array($current_data)) {
+    $current_data = [];
+}
 
 if ($method === 'GET') {
     $adminFiltro = isset($_GET['admin_id']) ? $_GET['admin_id'] : 'global';
     $empresaFiltro = isset($_GET['empresa']) ? $_GET['empresa'] : null;
-    $safeEmpresa = $empresaFiltro ? '_' . preg_replace('/[^a-zA-Z0-9]/', '', strtolower($empresaFiltro)) : '';
     $requestStats = isset($_GET['stats']) && $_GET['stats'] === 'true';
     $requestModule = isset($_GET['module']) ? $_GET['module'] : 'incidents';
 
     if ($requestModule === 'training') {
-        $db = __DIR__ . "/training_db_{$adminFiltro}{$safeEmpresa}.json";
+        $db = getSafeDbPath('training', $adminFiltro, $empresaFiltro);
         echo file_exists($db) ? file_get_contents($db) : json_encode([]);
         exit();
     }
     if ($requestModule === 'training_sessions') {
-        $db = __DIR__ . "/training_sessions_{$adminFiltro}{$safeEmpresa}.json";
+        $db = getSafeDbPath('training_sessions', $adminFiltro, $empresaFiltro);
         echo file_exists($db) ? file_get_contents($db) : json_encode([]);
         exit();
     }
     if ($requestModule === 'impl_meetings') {
-        $db = __DIR__ . "/impl_meetings_{$adminFiltro}{$safeEmpresa}.json";
+        $db = getSafeDbPath('impl_meetings', $adminFiltro, $empresaFiltro);
         echo file_exists($db) ? file_get_contents($db) : json_encode([]);
         exit();
     }
     if ($requestModule === 'implementation') {
-        $db = __DIR__ . "/impl_db_{$adminFiltro}{$safeEmpresa}.json";
+        $db = getSafeDbPath('implementation', $adminFiltro, $empresaFiltro);
         echo file_exists($db) ? file_get_contents($db) : json_encode([]);
         exit();
     }
     if ($requestModule === 'audit') {
-        $db = __DIR__ . "/audit_db_{$adminFiltro}{$safeEmpresa}.json";
+        $db = getSafeDbPath('audit', $adminFiltro, $empresaFiltro);
         echo file_exists($db) ? file_get_contents($db) : json_encode([]);
         exit();
     }
@@ -107,7 +144,9 @@ if ($method === 'GET') {
 
         foreach ($filtered_data as $inc) {
             $status = $inc['status'] ?? 'Abierto';
-            if (isset($stats['by_status'][$status])) $stats['by_status'][$status]++;
+            if (isset($stats['by_status'][$status])) {
+                $stats['by_status'][$status]++;
+            }
 
             $class = $inc['classification'] ?? 'Otros';
             $stats['by_class'][$class] = ($stats['by_class'][$class] ?? 0) + 1;
@@ -115,7 +154,9 @@ if ($method === 'GET') {
             $day = substr($inc['created_at'], 0, 10);
             $stats['by_day'][$day] = ($stats['by_day'][$day] ?? 0) + 1;
 
-            if (($inc['risk'] ?? '') === 'Alto') $stats['kpis']['critical_count']++;
+            if (($inc['risk'] ?? '') === 'Alto') {
+                $stats['kpis']['critical_count']++;
+            }
             
             if (($status === 'Resuelto' || $status === 'Cerrado') && !empty($inc['resolved_at'])) {
                 $resolvedCount++;
@@ -144,27 +185,27 @@ if ($method === 'GET') {
     $input_json = file_get_contents('php://input');
     $data = json_decode($input_json, true);
 
-    // DETERMINAR RUTA SEGÚN EL CAMPO "module"
     $module = isset($data['module']) ? $data['module'] : 'incidents';
     $adminId = isset($data['admin_id']) ? $data['admin_id'] : 'global';
     $empresa = isset($data['empresa']) ? $data['empresa'] : null;
-    $safeEmpresa = $empresa ? '_' . preg_replace('/[^a-zA-Z0-9]/', '', strtolower($empresa)) : '';
 
     if ($module === 'training') {
-        $db = __DIR__ . "/training_db_{$adminId}{$safeEmpresa}.json";
+        $db = getSafeDbPath('training', $adminId, $empresa);
         file_put_contents($db, json_encode($data['state'], JSON_PRETTY_PRINT));
         echo json_encode(["success" => true, "message" => "Progreso de capacitación guardado"]);
         exit();
     }
 
     if ($module === 'training_session') {
-        $db = __DIR__ . "/training_sessions_{$adminId}{$safeEmpresa}.json";
+        $db = getSafeDbPath('training_sessions', $adminId, $empresa);
         $current = file_exists($db) ? json_decode(file_get_contents($db), true) : [];
-        if (!is_array($current)) $current = [];
-        date_default_timezone_set('America/Bogota');
+        if (!is_array($current)) {
+            $current = [];
+        }
+        date_default_timezone_set(TIMEZONE_BOGOTA);
         array_unshift($current, [
             "id"         => uniqid('CAP-'),
-            "timestamp"  => date('Y-m-d H:i:s'),
+            "timestamp"  => date(DATE_FORMAT_STANDARD),
             "title"      => htmlspecialchars($data['title'] ?? 'Sin título'),
             "instructor" => htmlspecialchars($data['instructor'] ?? 'Sin asignar'),
             "attendees"  => intval($data['attendees'] ?? 0),
@@ -177,13 +218,15 @@ if ($method === 'GET') {
     }
 
     if ($module === 'impl_meeting') {
-        $db = __DIR__ . "/impl_meetings_{$adminId}{$safeEmpresa}.json";
+        $db = getSafeDbPath('impl_meetings', $adminId, $empresa);
         $current = file_exists($db) ? json_decode(file_get_contents($db), true) : [];
-        if (!is_array($current)) $current = [];
-        date_default_timezone_set('America/Bogota');
+        if (!is_array($current)) {
+            $current = [];
+        }
+        date_default_timezone_set(TIMEZONE_BOGOTA);
         array_unshift($current, [
             "id"          => uniqid('IMP-'),
-            "timestamp"   => date('Y-m-d H:i:s'),
+            "timestamp"   => date(DATE_FORMAT_STANDARD),
             "title"       => htmlspecialchars($data['title'] ?? 'Sin título'),
             "responsible" => htmlspecialchars($data['responsible'] ?? ''),
             "controls"    => htmlspecialchars($data['controls'] ?? ''),
@@ -197,17 +240,23 @@ if ($method === 'GET') {
     }
 
     if ($module === 'implementation') {
-        $db = __DIR__ . "/impl_db_{$adminId}{$safeEmpresa}.json";
-        date_default_timezone_set('America/Bogota');
-        $now = date('Y-m-d H:i:s');
+        $db = getSafeDbPath('implementation', $adminId, $empresa);
+        date_default_timezone_set(TIMEZONE_BOGOTA);
+        $now = date(DATE_FORMAT_STANDARD);
         $existing = file_exists($db) ? json_decode(file_get_contents($db), true) : [];
-        if (!is_array($existing)) $existing = [];
-        if (!isset($existing['_dates'])) $existing['_dates'] = [];
+        if (!is_array($existing)) {
+            $existing = [];
+        }
+        if (!isset($existing['_dates'])) {
+            $existing['_dates'] = [];
+        }
         $incomingState = (isset($data['state']) && is_array($data['state'])) ? $data['state'] : [];
         $stateToSave = array_merge($existing, $incomingState);
         
         foreach ($incomingState as $ctrl => $val) {
-            if ($ctrl === '_dates') continue;
+            if ($ctrl === '_dates') {
+                continue;
+            }
             if ($val === 'Cumplido' && !isset($existing['_dates'][$ctrl])) {
                 $existing['_dates'][$ctrl] = $now;
             } elseif ($val !== 'Cumplido') {
@@ -222,13 +271,15 @@ if ($method === 'GET') {
     }
 
     if ($module === 'audit') {
-        $db = __DIR__ . "/audit_db_{$adminId}{$safeEmpresa}.json";
+        $db = getSafeDbPath('audit', $adminId, $empresa);
         $current = file_exists($db) ? json_decode(file_get_contents($db), true) : [];
-        if (!is_array($current)) $current = [];
-        date_default_timezone_set('America/Bogota');
+        if (!is_array($current)) {
+            $current = [];
+        }
+        date_default_timezone_set(TIMEZONE_BOGOTA);
         array_unshift($current, [
             "id"          => uniqid('ACT-'),
-            "timestamp"   => date('Y-m-d H:i:s'),
+            "timestamp"   => date(DATE_FORMAT_STANDARD),
             "type"        => $data['type'],
             "topics"      => $data['topics'],
             "findings"    => $data['findings'] ?? '',
@@ -241,12 +292,13 @@ if ($method === 'GET') {
         exit();
     }
 
-    // Generación de ID Robusta para Incidentes (Lógica original se mantiene)
     $max_id_num = 0;
     foreach ($current_data as $inc) {
         if (isset($inc['id']) && preg_match('/INC-(\d+)/', $inc['id'], $matches)) {
             $num = (int)$matches[1];
-            if ($num > $max_id_num) $max_id_num = $num;
+            if ($num > $max_id_num) {
+                $max_id_num = $num;
+            }
         }
     }
     $new_id_number = $max_id_num + 1;
@@ -254,8 +306,8 @@ if ($method === 'GET') {
     
     $risk = calculateRisk($data['probability'], $data['impact']);
     
-    date_default_timezone_set('America/Bogota');
-    $now = date('Y-m-d H:i:s');
+    date_default_timezone_set(TIMEZONE_BOGOTA);
+    $now = date(DATE_FORMAT_STANDARD);
     
     $reporter = isset($data['reporter']) ? htmlspecialchars($data['reporter']) : 'Sistema';
     
@@ -295,7 +347,6 @@ if ($method === 'GET') {
     echo json_encode(["success"=>true, "message" => "Creado con éxito", "data" => $new_incident]);
     exit();
 } elseif ($method === 'PUT') {
-    // ... (Mantener lógica de incidentes)
     $input_json = file_get_contents('php://input');
     $data = json_decode($input_json, true);
     
@@ -306,8 +357,8 @@ if ($method === 'GET') {
     }
     
     $incident_found = false;
-    date_default_timezone_set('America/Bogota');
-    $now = date('Y-m-d H:i:s');
+    date_default_timezone_set(TIMEZONE_BOGOTA);
+    $now = date(DATE_FORMAT_STANDARD);
     $modifier = isset($data['modified_by']) ? htmlspecialchars($data['modified_by']) : 'Sistema';
     
     foreach ($current_data as &$incident) {
@@ -321,7 +372,9 @@ if ($method === 'GET') {
                 $changes[] = "Estado de '$old_st' a '{$incident['status']}'";
                 
                 if ($incident['status'] === 'Resuelto' || $incident['status'] === 'Cerrado') {
-                    if (!$incident['resolved_at']) $incident['resolved_at'] = $now;
+                    if (!$incident['resolved_at']) {
+                        $incident['resolved_at'] = $now;
+                    }
                 }
             }
             if (isset($data['mitigation_plan']) && $data['mitigation_plan'] !== $incident['mitigation_plan']) {
@@ -333,7 +386,7 @@ if ($method === 'GET') {
                 $changes[] = "Asignado a: {$incident['assignee']}";
             }
             
-            if (count($changes) > 0) {
+            if (!empty($changes)) {
                 $incident['history'][] = [
                     "timestamp" => $now,
                     "user" => $modifier,
@@ -359,8 +412,6 @@ if ($method === 'GET') {
     }
     exit();
 } elseif ($method === 'PATCH') {
-    // NUEVO: GET para otros módulos usando PATCH o un parámetro en GET
-    // Por simplicidad en la entrega, usaremos GET con parámetros adicionales
     exit();
 } else {
     http_response_code(405);

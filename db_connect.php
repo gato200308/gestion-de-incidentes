@@ -3,8 +3,8 @@
 
 $host = '127.0.0.1';
 $db = 'gestion_incidentes';
-$user = 'root'; // Usuario por defecto de XAMPP
-$pass = '0525';     // Contraseña por defecto de XAMPP
+$user = getenv('DB_USER') ?: 'root'; // Usuario por defecto de XAMPP
+$pass = getenv('DB_PASS') ?: '0525';     // Contraseña por defecto de XAMPP
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
@@ -22,4 +22,3 @@ try {
     error_log($e->getMessage());
     die(json_encode(["success" => false, "message" => "Error al conectar con la base de datos. Asegúrate de ejecutar database.sql en phpMyAdmin."]));
 }
-?>
