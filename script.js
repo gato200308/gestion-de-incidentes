@@ -1001,6 +1001,107 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchIncidents();
     });
 
+    const renderCompaniesSidebar = (companies) => {
+        const activeCompaniesList = document.getElementById('activeCompaniesList');
+        if (!activeCompaniesList) return;
+        if (companies.length === 0) {
+            activeCompaniesList.innerHTML = '<p class="text-muted small text-center py-3">No hay empresas registradas aún.</p>';
+        } else {
+            activeCompaniesList.innerHTML = companies.map(c => `
+                <div class="timeline-item py-1" style="border-left: 2px solid var(--indigo-500); padding-left: 8px; margin-bottom: 6px;">
+                    <span class="timeline-user fw-bold text-indigo"><i class="bi bi-building"></i> ${c.name}</span>
+                </div>
+            `).join('');
+        }
+    };
+
+    const setupRegisterCompanyForm = () => {
+        const registerCompanyForm = document.getElementById('registerCompanyForm');
+        if (!registerCompanyForm) return;
+        
+        // Clonar para evitar listeners duplicados
+        const newForm = registerCompanyForm.cloneNode(true);
+        registerCompanyForm.parentNode.replaceChild(newForm, registerCompanyForm);
+        
+        newForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newCompInput = document.getElementById('newCompanyName');
+            const name = newCompInput.value.trim();
+            if (!name) return;
+            
+            try {
+                const addRes = await fetch('api.php?module=companies', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name })
+                });
+                const addJson = await addRes.json();
+                if (addRes.ok && addJson.success) {
+                    showToast('Empresa registrada con éxito', 'success');
+                    newCompInput.value = '';
+                    loadAdminUsers(); // Recargar usuarios
+                } else {
+                    showToast(addJson.message || 'Error al registrar empresa', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Error de conexión', 'error');
+            }
+        });
+    };
+
+    const parseUserRoles = (role) => {
+        try {
+            if (Array.isArray(role)) {
+                return role;
+            }
+            if (typeof role === 'string' && role.startsWith('[')) {
+                return JSON.parse(role);
+            }
+            return [role];
+        } catch (e) {
+            console.warn("Error parsing user roles in admin panel:", e);
+            return [role];
+        }
+    };
+
+    const getUserRoleHTML = (currentRoles, uId) => {
+        const isSuperAdminUser = currentRoles.includes('super_admin');
+        const isAdminUser = currentRoles.includes('admin');
+
+        if (isSuperAdminUser) {
+            return `<span class="badge risk-alto">Dueño / Super Admin</span>`;
+        }
+        if (isAdminUser) {
+            return `<span class="badge risk-medio">Administrador</span>`;
+        }
+        const modulos = [
+            { key: 'capacitador',   label: 'Capacitador' },
+            { key: 'implementador', label: 'Implementador' },
+            { key: 'auditor',       label: 'Auditor' },
+            { key: 'analyst',       label: 'Incidentes' }
+        ];
+        return `<div class="role-checkboxes" data-id="${uId}">`
+            + modulos.map(m => `
+                <label style="display:flex;align-items:center;gap:4px;font-size:0.78rem;cursor:pointer;">
+                    <input type="checkbox" value="${m.key}" ${currentRoles.includes(m.key)?'checked':''}>
+                    ${m.label}
+                </label>`).join('')
+            + `</div>`;
+    };
+
+    const getUserEmpBlock = (u, registeredCompanies, isSuper, isMyReferral) => {
+        const compDropdownOptions = `
+            <option value="">Ninguna (Sin Asignar)</option>
+            ${registeredCompanies.map(c => `<option value="${c.id}" ${u.company_id == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+        `;
+        return `
+            <select class="filter-select admin-emp-select" data-id="${u.id}" ${(isSuper || isMyReferral) ? '' : 'disabled'} style="width: 100%;">
+                ${compDropdownOptions}
+            </select>
+        `;
+    };
+
     const loadAdminUsers = async () => {
         const myUserId = document.body.dataset.userId;
         const myCode = document.body.dataset.adminCode;
@@ -1029,52 +1130,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const registeredCompanies = data.companies || [];
                 
                 // Renderizar empresas en la lista lateral
-                const activeCompaniesList = document.getElementById('activeCompaniesList');
-                if (activeCompaniesList) {
-                    if (registeredCompanies.length === 0) {
-                        activeCompaniesList.innerHTML = '<p class="text-muted small text-center py-3">No hay empresas registradas aún.</p>';
-                    } else {
-                        activeCompaniesList.innerHTML = registeredCompanies.map(c => `
-                            <div class="timeline-item py-1" style="border-left: 2px solid var(--indigo-500); padding-left: 8px; margin-bottom: 6px;">
-                                <span class="timeline-user fw-bold text-indigo"><i class="bi bi-building"></i> ${c.name}</span>
-                            </div>
-                        `).join('');
-                    }
-                }
+                renderCompaniesSidebar(registeredCompanies);
 
                 // Configurar formulario para registrar empresa
-                const registerCompanyForm = document.getElementById('registerCompanyForm');
-                if (registerCompanyForm) {
-                    // Clonar para evitar listeners duplicados
-                    const newForm = registerCompanyForm.cloneNode(true);
-                    registerCompanyForm.parentNode.replaceChild(newForm, registerCompanyForm);
-                    
-                    newForm.addEventListener('submit', async (e) => {
-                        e.preventDefault();
-                        const newCompInput = document.getElementById('newCompanyName');
-                        const name = newCompInput.value.trim();
-                        if (!name) return;
-                        
-                        try {
-                            const addRes = await fetch('api.php?module=companies', {
-                                method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({ name })
-                            });
-                            const addJson = await addRes.json();
-                            if (addRes.ok && addJson.success) {
-                                showToast('Empresa registrada con éxito', 'success');
-                                newCompInput.value = '';
-                                loadAdminUsers(); // Recargar todo
-                            } else {
-                                showToast(addJson.message || 'Error al registrar empresa', 'error');
-                            }
-                        } catch (err) {
-                            console.error(err);
-                            showToast('Error de conexión', 'error');
-                        }
-                    });
-                }
+                setupRegisterCompanyForm();
 
                 usersBody.innerHTML = '';
                 if (data.data.length === 0) {
@@ -1088,54 +1147,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const referralBadge = (isMyReferral && !u.company_id) ? '<span class="badge risk-bajo" style="font-size:0.6rem;padding:2px 4px;border:1px dashed var(--green-500)">NUEVO REFERIDO</span>' : '';
 
                     // Multi-rol: parsear roles actuales del usuario
-                    let currentRoles = [];
-                    try {
-                        if (Array.isArray(u.role)) {
-                            currentRoles = u.role;
-                        } else if (typeof u.role === 'string' && u.role.startsWith('[')) {
-                            currentRoles = JSON.parse(u.role);
-                        } else {
-                            currentRoles = [u.role];
-                        }
-                    } catch (e) {
-                        console.warn("Error parsing user roles in admin panel:", e);
-                        currentRoles = [u.role];
-                    }
-
-                    const isSuperAdminUser = currentRoles.includes('super_admin');
-                    const isAdminUser = currentRoles.includes('admin');
-
-                    let roleBlock = '';
-                    if (isSuperAdminUser) {
-                        roleBlock = `<span class="badge risk-alto">Dueño / Super Admin</span>`;
-                    } else if (isAdminUser) {
-                        roleBlock = `<span class="badge risk-medio">Administrador</span>`;
-                    } else {
-                        const modulos = [
-                            { key: 'capacitador',   label: 'Capacitador' },
-                            { key: 'implementador', label: 'Implementador' },
-                            { key: 'auditor',       label: 'Auditor' },
-                            { key: 'analyst',       label: 'Incidentes' }
-                        ];
-                        roleBlock = `<div class="role-checkboxes" data-id="${u.id}">`
-                            + modulos.map(m => `
-                                <label style="display:flex;align-items:center;gap:4px;font-size:0.78rem;cursor:pointer;">
-                                    <input type="checkbox" value="${m.key}" ${currentRoles.includes(m.key)?'checked':''}>
-                                    ${m.label}
-                                </label>`).join('')
-                            + `</div>`;
-                    }
+                    const currentRoles = parseUserRoles(u.role);
+                    const roleBlock = getUserRoleHTML(currentRoles, u.id);
 
                     // Renderizar select selector dropdown de empresas registradas
-                    const compDropdownOptions = `
-                        <option value="">Ninguna (Sin Asignar)</option>
-                        ${registeredCompanies.map(c => `<option value="${c.id}" ${u.company_id == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
-                    `;
-                    const empBlock = `
-                        <select class="filter-select admin-emp-select" data-id="${u.id}" ${(isSuper || isMyReferral) ? '' : 'disabled'} style="width: 100%;">
-                            ${compDropdownOptions}
-                        </select>
-                    `;
+                    const empBlock = getUserEmpBlock(u, registeredCompanies, isSuper, isMyReferral);
 
                     tr.innerHTML = `
                         <td>

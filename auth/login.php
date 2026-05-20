@@ -44,10 +44,10 @@ try {
         $_SESSION['company_id'] = $user['company_id'];
         
         echo json_encode([
-            'success' => true, 
-            'message' => 'Login exitoso', 
-            'username' => $user['username'], 
-            'role' => $user['role'], 
+            'success' => true,
+            'message' => 'Login exitoso',
+            'username' => $user['username'],
+            'role' => $user['role'],
             'empresa' => $user['empresa'],
             'company_id' => $user['company_id']
         ]);

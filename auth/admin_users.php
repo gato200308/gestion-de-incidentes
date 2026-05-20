@@ -18,8 +18,8 @@ if (!isset($_SESSION['user_id']) || !hasAnyRole($_SESSION['role'], ['super_admin
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-$isSuperAdmin = (is_array(json_decode($_SESSION['role'], true)) 
-    ? in_array('super_admin', json_decode($_SESSION['role'], true)) 
+$isSuperAdmin = (is_array(json_decode($_SESSION['role'], true))
+    ? in_array('super_admin', json_decode($_SESSION['role'], true))
     : $_SESSION['role'] === 'super_admin');
 
 if ($method === 'GET') {
@@ -27,16 +27,16 @@ if ($method === 'GET') {
     try {
         if ($isSuperAdmin) {
             // Super Admin ve a absolutamente todos los usuarios
-            $stmt = $pdo->prepare("SELECT u.id, u.username, u.email, u.role, c.name AS empresa, u.company_id, u.vinculado_a_admin_id, u.created_at 
-                                   FROM users u 
-                                   LEFT JOIN companies c ON u.company_id = c.id 
+            $stmt = $pdo->prepare("SELECT u.id, u.username, u.email, u.role, c.name AS empresa, u.company_id, u.vinculado_a_admin_id, u.created_at
+                                   FROM users u
+                                   LEFT JOIN companies c ON u.company_id = c.id
                                    ORDER BY u.created_at DESC");
             $stmt->execute();
         } else {
             // Admin regular solo ve los vinculados directamente o a sí mismo (ISO 27001 - Privacidad y Control de Acceso)
-            $stmt = $pdo->prepare("SELECT u.id, u.username, u.email, u.role, c.name AS empresa, u.company_id, u.vinculado_a_admin_id, u.created_at 
-                                   FROM users u 
-                                   LEFT JOIN companies c ON u.company_id = c.id 
+            $stmt = $pdo->prepare("SELECT u.id, u.username, u.email, u.role, c.name AS empresa, u.company_id, u.vinculado_a_admin_id, u.created_at
+                                   FROM users u
+                                   LEFT JOIN companies c ON u.company_id = c.id
                                    WHERE u.vinculado_a_admin_id = ? OR u.id = ?
                                    ORDER BY u.created_at DESC");
             $stmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
@@ -49,8 +49,8 @@ if ($method === 'GET') {
         $companies = $compStmt->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode([
-            'success' => true, 
-            'data' => $users, 
+            'success' => true,
+            'data' => $users,
             'companies' => $companies
         ]);
     } catch (PDOException $e) {

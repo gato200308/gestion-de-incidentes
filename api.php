@@ -8,6 +8,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once 'db_connect.php';
 
+define('PHP_INPUT', 'php://input');
+define('UNASSIGNED', 'Sin asignar');
+
 // 1. Control de Autenticación (ISO 27001 Control de Acceso)
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -39,8 +42,12 @@ function calculateRisk($prob, $imp) {
     $p = $probMap[$prob] ?? 1;
     $i = $impMap[$imp] ?? 1;
     $score = $p * $i;
-    if ($score >= 6) return 'Alto';
-    if ($score >= 3) return 'Medio';
+    if ($score >= 6) {
+        return 'Alto';
+    }
+    if ($score >= 3) {
+        return 'Medio';
+    }
     return 'Bajo';
 }
 
@@ -54,7 +61,7 @@ try {
             $companies = $stmt->fetchAll();
             echo json_encode(['success' => true, 'data' => $companies]);
             exit();
-        } 
+        }
         elseif ($method === 'POST') {
             // Solo Admins/SuperAdmins pueden crear nuevas empresas (Hardening)
             if (!$isAdmin) {
@@ -62,7 +69,7 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Permiso denegado para registrar empresas.']);
                 exit();
             }
-            $rawBody = file_get_contents('php://input');
+            $rawBody = file_get_contents(PHP_INPUT);
             $data = json_decode($rawBody, true);
             $name = trim($data['name'] ?? '');
 
@@ -91,9 +98,9 @@ try {
                 'check_video' => 0, 'check_policy' => 0, 'check_assets' => 0, 'check_incidents' => 0, 'check_access' => 0
             ]);
             exit();
-        } 
+        }
         elseif ($method === 'POST') {
-            $rawBody = file_get_contents('php://input');
+            $rawBody = file_get_contents(PHP_INPUT);
             $data = json_decode($rawBody, true);
             $state = $data['state'] ?? [];
 
@@ -104,8 +111,8 @@ try {
             $checkAccess = isset($state['check_access']) && $state['check_access'] ? 1 : 0;
 
             // Guardar o Actualizar progreso (Metodología ON DUPLICATE KEY UPDATE)
-            $stmt = $pdo->prepare("INSERT INTO training_progress (user_id, check_video, check_policy, check_assets, check_incidents, check_access) 
-                                   VALUES (?, ?, ?, ?, ?, ?) 
+            $stmt = $pdo->prepare("INSERT INTO training_progress (user_id, check_video, check_policy, check_assets, check_incidents, check_access)
+                                   VALUES (?, ?, ?, ?, ?, ?)
                                    ON DUPLICATE KEY UPDATE check_video=?, check_policy=?, check_assets=?, check_incidents=?, check_access=?");
             $stmt->execute([$userId, $checkVideo, $checkPolicy, $checkAssets, $checkIncidents, $checkAccess, $checkVideo, $checkPolicy, $checkAssets, $checkIncidents, $checkAccess]);
             echo json_encode(['success' => true, 'message' => 'Progreso guardado.']);
@@ -113,22 +120,20 @@ try {
         }
     }
 
-    if ($requestModule === 'training_sessions') {
-        if ($method === 'GET') {
-            // Filtrar sesiones de capacitación del tenant actual
-            $stmt = $pdo->prepare("SELECT code, title, instructor, attendees, topics, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS timestamp FROM training_sessions WHERE company_id = ? ORDER BY created_at DESC");
-            $stmt->execute([$companyId]);
-            echo json_encode($stmt->fetchAll());
-            exit();
-        }
+    if ($requestModule === 'training_sessions' && $method === 'GET') {
+        // Filtrar sesiones de capacitación del tenant actual
+        $stmt = $pdo->prepare("SELECT code, title, instructor, attendees, topics, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS timestamp FROM training_sessions WHERE company_id = ? ORDER BY created_at DESC");
+        $stmt->execute([$companyId]);
+        echo json_encode($stmt->fetchAll());
+        exit();
     }
     
     if ($requestModule === 'training_session' && $method === 'POST') {
-        $rawBody = file_get_contents('php://input');
+        $rawBody = file_get_contents(PHP_INPUT);
         $data = json_decode($rawBody, true);
 
         $title = trim($data['title'] ?? '');
-        $instructor = trim($data['instructor'] ?? 'Sin asignar');
+        $instructor = trim($data['instructor'] ?? UNASSIGNED);
         $attendees = intval($data['attendees'] ?? 0);
         $topics = trim($data['topics'] ?? '');
         $code = uniqid('CAP-');
@@ -165,19 +170,21 @@ try {
             $state['_dates'] = $dates;
             echo json_encode($state);
             exit();
-        } 
+        }
         elseif ($method === 'POST') {
-            $rawBody = file_get_contents('php://input');
+            $rawBody = file_get_contents(PHP_INPUT);
             $data = json_decode($rawBody, true);
             $incomingState = $data['state'] ?? [];
 
             foreach ($incomingState as $ctrl => $status) {
-                if ($ctrl === '_dates') continue;
+                if ($ctrl === '_dates') {
+                    continue;
+                }
                 
                 $lastRevised = ($status === 'Cumplido') ? date('Y-m-d H:i:s') : null;
 
-                $stmt = $pdo->prepare("INSERT INTO impl_controls (control_id, status, last_revised, admin_id, company_id) 
-                                       VALUES (?, ?, ?, ?, ?) 
+                $stmt = $pdo->prepare("INSERT INTO impl_controls (control_id, status, last_revised, admin_id, company_id)
+                                       VALUES (?, ?, ?, ?, ?)
                                        ON DUPLICATE KEY UPDATE status = ?, last_revised = COALESCE(?, last_revised)");
                 $stmt->execute([$ctrl, $status, $lastRevised, $userId, $companyId, $status, $lastRevised]);
             }
@@ -186,21 +193,19 @@ try {
         }
     }
 
-    if ($requestModule === 'impl_meetings') {
-        if ($method === 'GET') {
-            $stmt = $pdo->prepare("SELECT code, title, responsible, controls, status, notes, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS timestamp FROM impl_meetings WHERE company_id = ? ORDER BY created_at DESC");
-            $stmt->execute([$companyId]);
-            echo json_encode($stmt->fetchAll());
-            exit();
-        }
+    if ($requestModule === 'impl_meetings' && $method === 'GET') {
+        $stmt = $pdo->prepare("SELECT code, title, responsible, controls, status, notes, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS timestamp FROM impl_meetings WHERE company_id = ? ORDER BY created_at DESC");
+        $stmt->execute([$companyId]);
+        echo json_encode($stmt->fetchAll());
+        exit();
     }
     
     if ($requestModule === 'impl_meeting' && $method === 'POST') {
-        $rawBody = file_get_contents('php://input');
+        $rawBody = file_get_contents(PHP_INPUT);
         $data = json_decode($rawBody, true);
 
         $title = trim($data['title'] ?? '');
-        $responsible = trim($data['responsible'] ?? 'Sin asignar');
+        $responsible = trim($data['responsible'] ?? UNASSIGNED);
         $controls = trim($data['controls'] ?? '');
         $status = trim($data['status'] ?? 'Planificada');
         $notes = trim($data['notes'] ?? '');
@@ -229,11 +234,11 @@ try {
             exit();
         }
         elseif ($method === 'POST') {
-            $rawBody = file_get_contents('php://input');
+            $rawBody = file_get_contents(PHP_INPUT);
             $data = json_decode($rawBody, true);
 
             $type = trim($data['type'] ?? 'Apertura');
-            $responsible = trim($data['responsible'] ?? 'Sin asignar');
+            $responsible = trim($data['responsible'] ?? UNASSIGNED);
             $topics = trim($data['topics'] ?? '');
             $findings = trim($data['findings'] ?? '');
             $status = trim($data['status'] ?? 'Planificada');
@@ -340,7 +345,7 @@ try {
 
         // C. REPORTAR NUEVO INCIDENTE (ISO 27001 A.5.24)
         elseif ($method === 'POST') {
-            $rawBody = file_get_contents('php://input');
+            $rawBody = file_get_contents(PHP_INPUT);
             $data = json_decode($rawBody, true);
 
             $title = trim($data['title'] ?? '');
@@ -368,7 +373,7 @@ try {
             $newCode = "INC-" . str_pad($count + 1, 3, "0", STR_PAD_LEFT);
 
             // Insertar incidente
-            $stmt = $pdo->prepare("INSERT INTO incidents (code, title, description, probability, impact, risk, classification, affected_assets, evidence_hash, company_id, admin_id, reporter) 
+            $stmt = $pdo->prepare("INSERT INTO incidents (code, title, description, probability, impact, risk, classification, affected_assets, evidence_hash, company_id, admin_id, reporter)
                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$newCode, htmlspecialchars($title), htmlspecialchars($description), htmlspecialchars($probability), htmlspecialchars($impact), $risk, htmlspecialchars($classification), htmlspecialchars($affectedAssets), htmlspecialchars($evidenceHash), $companyId, $userId, $reporter]);
             
@@ -385,7 +390,7 @@ try {
 
         // D. ACTUALIZAR INCIDENTE (MITIGACIÓN, RESOLUCIÓN & CIERRE - A.5.26 & A.5.27)
         elseif ($method === 'PUT') {
-            $rawBody = file_get_contents('php://input');
+            $rawBody = file_get_contents(PHP_INPUT);
             $data = json_decode($rawBody, true);
 
             $code = $data['id'] ?? null;
