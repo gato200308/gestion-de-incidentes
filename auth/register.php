@@ -60,23 +60,19 @@ try {
     // [VINCULACIÓN POR CÓDIGO]
     $inviteCode = isset($data['invite_code']) ? trim($data['invite_code']) : null;
     $vinculadoId = null;
-    $empresaInicial = null;
+    $companyIdInicial = null;
 
     if ($inviteCode) {
-        $stmt = $pdo->prepare("SELECT id, empresa FROM users WHERE codigo_admin = ? AND role IN ('super_admin', 'admin')");
+        $stmt = $pdo->prepare("SELECT id, company_id FROM users WHERE codigo_admin = ? AND (role LIKE '%admin%' OR role LIKE '%super_admin%')");
         $stmt->execute([$inviteCode]);
         $adminReferido = $stmt->fetch();
         if ($adminReferido) {
             $vinculadoId = $adminReferido['id'];
-            // Si el admin ya tiene empresa, vinculamos al usuario a esa empresa también
-            // $empresaInicial = $adminReferido['empresa']; // El usuario prefiere que el admin lo asigne manual?
-            // "nicolas tenga un id aleatoria si la pone pues nicolas pone que empresa"
-            // Re-leyendo: El usuario quiere que Nicolas ponga la empresa DESPUÉS.
         }
     }
 
-    $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, vinculado_a_admin_id, empresa) VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute([$username, $email, $password_hash, $vinculadoId, $empresaInicial]);
+    $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, vinculado_a_admin_id, company_id) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$username, $email, $password_hash, $vinculadoId, $companyIdInicial]);
 
     http_response_code(201); // Created
     echo json_encode(['success' => true, 'message' => 'Usuario registrado exitosamente']);

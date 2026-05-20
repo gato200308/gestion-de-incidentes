@@ -1,4 +1,5 @@
 <?php
+// auth/admin_users.php
 require_once '../db_connect.php';
 session_start();
 
@@ -17,42 +18,64 @@ if (!isset($_SESSION['user_id']) || !hasAnyRole($_SESSION['role'], ['super_admin
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-$isSuperAdmin = ($_SESSION['role'] === 'super_admin');
+$isSuperAdmin = (is_array(json_decode($_SESSION['role'], true)) 
+    ? in_array('super_admin', json_decode($_SESSION['role'], true)) 
+    : $_SESSION['role'] === 'super_admin');
 
 if ($method === 'GET') {
-    // [LISTAR USUARIOS]
+    // [LISTAR USUARIOS Y EMPRESAS REGISTRADAS]
     try {
-        // Filtro Estricto: Solo ves a los usuarios vinculados directamente a tu cuenta (Privacidad Total)
-        $stmt = $pdo->prepare("SELECT id, username, email, role, empresa, vinculado_a_admin_id, created_at FROM users
-                             WHERE vinculado_a_admin_id = ?
-                             ORDER BY created_at DESC");
-        $stmt->execute([$_SESSION['user_id']]);
+        if ($isSuperAdmin) {
+            // Super Admin ve a absolutamente todos los usuarios
+            $stmt = $pdo->prepare("SELECT u.id, u.username, u.email, u.role, c.name AS empresa, u.company_id, u.vinculado_a_admin_id, u.created_at 
+                                   FROM users u 
+                                   LEFT JOIN companies c ON u.company_id = c.id 
+                                   ORDER BY u.created_at DESC");
+            $stmt->execute();
+        } else {
+            // Admin regular solo ve los vinculados directamente o a sí mismo (ISO 27001 - Privacidad y Control de Acceso)
+            $stmt = $pdo->prepare("SELECT u.id, u.username, u.email, u.role, c.name AS empresa, u.company_id, u.vinculado_a_admin_id, u.created_at 
+                                   FROM users u 
+                                   LEFT JOIN companies c ON u.company_id = c.id 
+                                   WHERE u.vinculado_a_admin_id = ? OR u.id = ?
+                                   ORDER BY u.created_at DESC");
+            $stmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
+        }
         
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(['success' => true, 'data' => $users]);
+
+        // Listar todas las empresas registradas para poblar el dropdown de asignación en el panel administrativo
+        $compStmt = $pdo->query("SELECT id, name FROM companies ORDER BY name ASC");
+        $companies = $compStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            'success' => true, 
+            'data' => $users, 
+            'companies' => $companies
+        ]);
     } catch (PDOException $e) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Error al obtener usuarios']);
+        echo json_encode(['success' => false, 'message' => 'Error al obtener usuarios: ' . $e->getMessage()]);
     }
 }
- elseif ($method === 'PUT') {
-    // [ACTUALIZAR USUARIO]
+elseif ($method === 'PUT') {
+    // [ACTUALIZAR USUARIO EN PANEL SAAS]
     $input_json = file_get_contents('php://input');
     $data = json_decode($input_json, true);
 
-    if (!isset($data['id']) || !isset($data['empresa'])) {
+    if (!isset($data['id'])) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Faltan parámetros requeridos']);
+        echo json_encode(['success' => false, 'message' => 'Falta el ID del usuario']);
         exit();
     }
 
     try {
         $id = $data['id'];
-        $requestedRole = $data['role'];
-        $requestedEmpresa = trim($data['empresa']) === '' ? null : trim($data['empresa']);
+        $requestedRole = $data['role'] ?? null;
+        $requestedCompanyId = isset($data['company_id']) && $data['company_id'] !== '' ? intval($data['company_id']) : null;
 
         // 1. Obtener datos actuales del usuario objetivo
-        $stmt = $pdo->prepare("SELECT role, empresa, vinculado_a_admin_id, codigo_admin FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT role, company_id, vinculado_a_admin_id, codigo_admin FROM users WHERE id = ?");
         $stmt->execute([$id]);
         $targetUser = $stmt->fetch();
 
@@ -62,46 +85,42 @@ if ($method === 'GET') {
             exit();
         }
 
-        // 2. Validaciones de Jerarquía (ISO 27001 - Control de Acceso)
+        // 2. Validaciones de Jerarquía y Aislamiento (ISO 27001)
         if (!$isSuperAdmin) {
-            // Si eres Admin regular:
-            // a. No puedes editar usuarios de otras empresas A MENOS QUE estén vinculados a ti directamente
             $esVinculadoMio = ($targetUser['vinculado_a_admin_id'] == $_SESSION['user_id']);
             
-            if ($targetUser['empresa'] !== $_SESSION['empresa'] && !$esVinculadoMio) {
+            if ($targetUser['company_id'] !== $_SESSION['company_id'] && !$esVinculadoMio) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'message' => 'No tienes permiso para editar este usuario.']);
                 exit();
             }
-            // b. No puedes editar a un Super Admin
+            
             if (hasAnyRole($targetUser['role'], ['super_admin'])) {
                 http_response_code(403);
-                echo json_encode(['success' => false, 'message' => 'Restricción de seguridad: Dueño intocable.']);
+                echo json_encode(['success' => false, 'message' => 'Restricción de seguridad: Rol Super Admin intocable.']);
                 exit();
             }
-            // c. No puedes CREAR otros Admins o Super Admins
+            
             if (in_array($requestedRole, ['super_admin', 'admin'])) {
                 http_response_code(403);
-                echo json_encode(['success' => false, 'message' => 'No tienes niveles de autorización para crear gestores.']);
+                echo json_encode(['success' => false, 'message' => 'No posees nivel de autorización para crear gestores.']);
                 exit();
             }
-            // d. Si cambias la empresa y NO es un vinculado directo, solo puedes poner la TUYA
-            if (!$esVinculadoMio && $requestedEmpresa !== $_SESSION['empresa'] && $requestedEmpresa !== null) {
-                $requestedEmpresa = $_SESSION['empresa'];
+
+            // Si cambias la empresa y no es un vinculado directo, solo puedes poner tu propia empresa
+            if (!$esVinculadoMio && $requestedCompanyId !== $_SESSION['company_id'] && $requestedCompanyId !== null) {
+                $requestedCompanyId = $_SESSION['company_id'];
             }
-            // Si ES un vinculado, permitimos que el Admin le ponga CUALQUIER empresa (Flexibilidad Multi-tenant)
         }
 
-        // 3. Validar rol válido (Sanitización ISO 27001)
+        // 3. Validar y sanitizar roles
         if ($requestedRole !== null) {
             $validSingle = ['super_admin', 'admin', 'analyst', 'user', 'capacitador', 'implementador', 'auditor', 'completo'];
-            // Puede ser un string JSON como '["capacitador","auditor"]'
             if (is_string($requestedRole) && str_starts_with($requestedRole, '[')) {
                 $rolesArr = json_decode($requestedRole, true);
                 if (!is_array($rolesArr)) {
                     $requestedRole = '[]';
                 } else {
-                    // Filtrar solo roles válidos del array
                     $rolesArr = array_values(array_filter($rolesArr, fn($r) => in_array($r, $validSingle)));
                     $requestedRole = json_encode($rolesArr);
                 }
@@ -109,29 +128,28 @@ if ($method === 'GET') {
                 $requestedRole = 'user';
             }
         } else {
-            // role null = no cambiar
             $requestedRole = $targetUser['role'];
         }
 
-        // 4. GENERACIÓN AUTOMÁTICA DE CÓDIGO (Si se convierte en Admin y no tiene uno)
+        // 4. Generación de código de invitación administrativo
         $newAdminCode = $targetUser['codigo_admin'];
-        if (hasAnyRole($requestedRole, ['super_admin', 'admin']) && (empty($newAdminCode))) {
+        if (hasAnyRole($requestedRole, ['super_admin', 'admin']) && empty($newAdminCode)) {
             $newAdminCode = 'SGI-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 6));
         }
 
-        // 5. ASIGNACIÓN DE DUEÑO (Si el usuario era "huérfano" y el Super Admin lo está editando)
+        // 5. Asignación de dueño
         $newVinculadoId = $targetUser['vinculado_a_admin_id'];
         if ($isSuperAdmin && $newVinculadoId === null) {
             $newVinculadoId = $_SESSION['user_id'];
         }
 
-        $stmt = $pdo->prepare("UPDATE users SET role = ?, empresa = ?, codigo_admin = ?, vinculado_a_admin_id = ? WHERE id = ?");
-        $stmt->execute([$requestedRole, $requestedEmpresa, $newAdminCode, $newVinculadoId, $id]);
+        $stmt = $pdo->prepare("UPDATE users SET role = ?, company_id = ?, codigo_admin = ?, vinculado_a_admin_id = ? WHERE id = ?");
+        $stmt->execute([$requestedRole, $requestedCompanyId, $newAdminCode, $newVinculadoId, $id]);
 
-        echo json_encode(['success' => true, 'message' => 'Usuario actualizado correctamente']);
+        echo json_encode(['success' => true, 'message' => 'Usuario asignado y actualizado correctamente.']);
     } catch (PDOException $e) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'message' => 'Error al actualizar usuario']);
+        echo json_encode(['success' => false, 'message' => 'Error al actualizar usuario: ' . $e->getMessage()]);
     }
 } else {
     http_response_code(405);

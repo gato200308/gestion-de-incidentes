@@ -27,7 +27,7 @@ $password = $data['password'];
 
 try {
     // Buscar usuario por username (incluyendo la empresa)
-    $stmt = $pdo->prepare("SELECT id, username, password_hash, role, empresa FROM users WHERE username = ?");
+    $stmt = $pdo->prepare("SELECT u.id, u.username, u.password_hash, u.role, c.name AS empresa, u.company_id FROM users u LEFT JOIN companies c ON u.company_id = c.id WHERE u.username = ?");
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -41,8 +41,16 @@ try {
         $_SESSION['username'] = $user['username'];
         $_SESSION['role'] = $user['role'];
         $_SESSION['empresa'] = $user['empresa'];
+        $_SESSION['company_id'] = $user['company_id'];
         
-        echo json_encode(['success' => true, 'message' => 'Login exitoso', 'username' => $user['username'], 'role' => $user['role'], 'empresa' => $user['empresa']]);
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Login exitoso', 
+            'username' => $user['username'], 
+            'role' => $user['role'], 
+            'empresa' => $user['empresa'],
+            'company_id' => $user['company_id']
+        ]);
     } else {
         http_response_code(401); // Unauthorized
         echo json_encode(['success' => false, 'message' => 'Credenciales inválidas']);

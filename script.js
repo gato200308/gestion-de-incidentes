@@ -862,9 +862,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             title: document.getElementById('title').value.trim(),
             description: document.getElementById('description').value.trim(),
+            affected_assets: document.getElementById('affected_assets').value.trim(),
             classification: document.getElementById('classification').value,
             probability: document.getElementById('probability').value,
-            impact: document.getElementById('impact').value
+            impact: document.getElementById('impact').value,
+            evidence_hash: document.getElementById('evidence_hash').value.trim()
         };
 
         try {
@@ -878,11 +880,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const data = await res.json();
             if (res.ok && data.success) {
-                showToast(`¡Incidente reportado con éxito! ID: ${data.data.id}`, 'success');
+                showToast(`¡Incidente reportado con éxito!`, 'success');
                 incidentForm.reset();
+                if (typeof updateRiskEstimation === 'function') updateRiskEstimation();
                 fetchIncidents();
             } else {
                 showToast(data.message || 'Error al guardar', 'error');
+            }
         } catch (err) {
             console.error("Error reporting incident:", err);
             showToast('Fallo de conexión al enviar', 'error');
@@ -900,6 +904,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modalClass) modalClass.textContent = incident.classification;
         if (modalProbImp) modalProbImp.textContent = `${incident.probability} / ${incident.impact}`;
         
+        const modalAffectedAssets = document.getElementById('modalAffectedAssets');
+        if (modalAffectedAssets) {
+            modalAffectedAssets.textContent = incident.affected_assets || 'No especificados';
+        }
+        
+        const modalLessonsLearned = document.getElementById('modalLessonsLearned');
+        if (modalLessonsLearned) {
+            modalLessonsLearned.value = incident.lessons_learned || '';
+        }
+
+        const modalEvidenceHashInput = document.getElementById('modalEvidenceHash');
+        if (modalEvidenceHashInput) {
+            modalEvidenceHashInput.value = incident.evidence_hash || '';
+        }
+        
         if (modalRisk) modalRisk.innerHTML = `<span class="badge risk-${incident.risk.toLowerCase()}">${incident.risk}</span>`;
         if (modalReporter) modalReporter.textContent = incident.reporter;
         
@@ -909,7 +928,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render Timeline
         modalTimeline.innerHTML = '';
         if (incident.history && incident.history.length > 0) {
-            // Mostrar últimos eventos arriba
             [...incident.history].reverse().forEach(ev => {
                 const dv = document.createElement('div');
                 dv.className = 'timeline-item';
@@ -942,7 +960,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             id: currentModalIncidentId,
             status: modalStatusSelect.value,
-            mitigation_plan: modalMitigation.value.trim()
+            mitigation_plan: modalMitigation.value.trim(),
+            lessons_learned: document.getElementById('modalLessonsLearned').value.trim(),
+            evidence_hash: document.getElementById('modalEvidenceHash').value.trim()
         };
 
         try {
@@ -960,6 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchIncidents();
             } else {
                 showToast(data.message || 'Error al actualizar', 'error');
+            }
         } catch (err) {
             console.error("Error updating incident status/mitigation:", err);
             showToast('Fallo al actualizar', 'error');
@@ -984,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const myUserId = document.body.dataset.userId;
         const myCode = document.body.dataset.adminCode;
         const userRoleEl = document.getElementById('sidebarRole');
-        const isSuper = userRoleEl && (userRoleEl.textContent.includes('Owner') || userRoleEl.textContent.includes('Admin Global'));
+        const isSuper = userRoleEl && (userRoleEl.textContent.includes('Owner') || userRoleEl.textContent.includes('Admin Global') || userRoleEl.textContent.includes('Super'));
         
         // Mostrar código de invitación en el header
         const adminInviteInfo = document.getElementById('adminInviteInfo');
@@ -1005,6 +1026,56 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             
             if (data.success) {
+                const registeredCompanies = data.companies || [];
+                
+                // Renderizar empresas en la lista lateral
+                const activeCompaniesList = document.getElementById('activeCompaniesList');
+                if (activeCompaniesList) {
+                    if (registeredCompanies.length === 0) {
+                        activeCompaniesList.innerHTML = '<p class="text-muted small text-center py-3">No hay empresas registradas aún.</p>';
+                    } else {
+                        activeCompaniesList.innerHTML = registeredCompanies.map(c => `
+                            <div class="timeline-item py-1" style="border-left: 2px solid var(--indigo-500); padding-left: 8px; margin-bottom: 6px;">
+                                <span class="timeline-user fw-bold text-indigo"><i class="bi bi-building"></i> ${c.name}</span>
+                            </div>
+                        `).join('');
+                    }
+                }
+
+                // Configurar formulario para registrar empresa
+                const registerCompanyForm = document.getElementById('registerCompanyForm');
+                if (registerCompanyForm) {
+                    // Clonar para evitar listeners duplicados
+                    const newForm = registerCompanyForm.cloneNode(true);
+                    registerCompanyForm.parentNode.replaceChild(newForm, registerCompanyForm);
+                    
+                    newForm.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const newCompInput = document.getElementById('newCompanyName');
+                        const name = newCompInput.value.trim();
+                        if (!name) return;
+                        
+                        try {
+                            const addRes = await fetch('api.php?module=companies', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ name })
+                            });
+                            const addJson = await addRes.json();
+                            if (addRes.ok && addJson.success) {
+                                showToast('Empresa registrada con éxito', 'success');
+                                newCompInput.value = '';
+                                loadAdminUsers(); // Recargar todo
+                            } else {
+                                showToast(addJson.message || 'Error al registrar empresa', 'error');
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            showToast('Error de conexión', 'error');
+                        }
+                    });
+                }
+
                 usersBody.innerHTML = '';
                 if (data.data.length === 0) {
                     usersBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No hay otros usuarios registrados en el sistema.</td></tr>';
@@ -1014,7 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 data.data.forEach(u => {
                     const tr = document.createElement('tr');
                     const isMyReferral = (u.vinculado_a_admin_id == myUserId);
-                    const referralBadge = (isMyReferral && !u.empresa) ? '<span class="badge risk-bajo" style="font-size:0.6rem;padding:2px 4px;border:1px dashed var(--green-500)">NUEVO REFERIDO</span>' : '';
+                    const referralBadge = (isMyReferral && !u.company_id) ? '<span class="badge risk-bajo" style="font-size:0.6rem;padding:2px 4px;border:1px dashed var(--green-500)">NUEVO REFERIDO</span>' : '';
 
                     // Multi-rol: parsear roles actuales del usuario
                     let currentRoles = [];
@@ -1055,16 +1126,24 @@ document.addEventListener('DOMContentLoaded', () => {
                             + `</div>`;
                     }
 
+                    // Renderizar select selector dropdown de empresas registradas
+                    const compDropdownOptions = `
+                        <option value="">Ninguna (Sin Asignar)</option>
+                        ${registeredCompanies.map(c => `<option value="${c.id}" ${u.company_id == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                    `;
+                    const empBlock = `
+                        <select class="filter-select admin-emp-select" data-id="${u.id}" ${(isSuper || isMyReferral) ? '' : 'disabled'} style="width: 100%;">
+                            ${compDropdownOptions}
+                        </select>
+                    `;
+
                     tr.innerHTML = `
                         <td>
                             <strong>${u.username}</strong> ${referralBadge}
                             <br><small class="text-muted">${u.email}</small>
                         </td>
                         <td>${roleBlock}</td>
-                        <td>
-                            <input type="text" class="form-control admin-emp-input" data-id="${u.id}" value="${u.empresa || ''}"
-                                ${(isSuper || isMyReferral) ? '' : 'disabled'} placeholder="Ej. Empresa SaaS">
-                        </td>
+                        <td>${empBlock}</td>
                         <td>
                             <button class="btn-primary btn-sm btn-save-user" data-id="${u.id}" ${(!isSuper && !isMyReferral) ? 'disabled' : ''}>
                                 <i class="bi bi-save"></i>
@@ -1085,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const saveUserAdmin = async (btn) => {
         const id = btn.dataset.id;
-        const empresa = document.querySelector(`.admin-emp-input[data-id="${id}"]`).value;
+        const company_id = document.querySelector(`.admin-emp-select[data-id="${id}"]`).value;
 
         // Leer checkboxes multi-rol
         const checkboxContainer = document.querySelector(`.role-checkboxes[data-id="${id}"]`);
@@ -1105,7 +1184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('auth/admin_users.php', {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id, role, empresa})
+                body: JSON.stringify({id, role, company_id})
             });
             const data = await res.json();
             if (res.ok && data.success) {
@@ -1121,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 1500);
 
             } else {
-                showToast(data.message, 'error');
+                showToast(data.message || 'Error al actualizar', 'error');
             }
         } catch (e) {
             console.error("Error updating user admin:", e);

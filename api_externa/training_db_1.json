@@ -1,7 +1,0 @@
-{
-    "check_video": true,
-    "check_policy": true,
-    "check_assets": true,
-    "check_incidents": true,
-    "check_access": true
-}
