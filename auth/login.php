@@ -5,6 +5,12 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once '../db_connect.php';
 
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'No se pudo conectar a la base de datos']);
+    exit();
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method !== 'POST') {
@@ -55,7 +61,7 @@ try {
         http_response_code(401); // Unauthorized
         echo json_encode(['success' => false, 'message' => 'Credenciales inválidas']);
     }
-} catch (PDOException $e) {
+} catch (Throwable $e) {
     http_response_code(500);
     // Log the error internally, but do not expose details to the client
     error_log('Database error in login.php: ' . $e->getMessage());

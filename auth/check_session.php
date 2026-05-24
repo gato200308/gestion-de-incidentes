@@ -5,6 +5,16 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once '../db_connect.php';
 
+if (!$pdo) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'logged_in' => false,
+        'message' => 'No se pudo conectar a la base de datos'
+    ]);
+    exit;
+}
+
 if (isset($_SESSION['user_id'])) {
     try {
         // Fetch latest data from DB to ensure roles/companies are current (ISO 27001 Access Control)
@@ -52,14 +62,12 @@ if (isset($_SESSION['user_id'])) {
             http_response_code(401);
             echo json_encode(['success' => false, 'logged_in' => false, 'message' => 'Usuario no encontrado.']);
         }
-    } catch (\PDOException $e) {
-        // Default to session values if DB error
+    } catch (\Throwable $e) {
+        http_response_code(500);
         echo json_encode([
-            'success' => true,
-            'logged_in' => true,
-            'username' => $_SESSION['username'],
-            'role' => $_SESSION['role'],
-            'empresa' => $_SESSION['empresa']
+            'success' => false,
+            'logged_in' => false,
+            'message' => 'Error al consultar la sesión'
         ]);
     }
 } else {

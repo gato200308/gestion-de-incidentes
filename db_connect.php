@@ -19,6 +19,4 @@ try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
     error_log('DB Error: ' . $e->getMessage());
-    http_response_code(500);
-    die('Database connection failed');
 }
