@@ -2,9 +2,9 @@
 // db_connect.php
 
 $host = 'localhost';
-$db = 'u9708588862_incidentes1';
-$user = 'u9708588862_santiago1';
-$pass = 'Santiago2026!';
+$db = 'u970858862_incidentes1';
+$user = 'u970858862_santiago1';
+$pass = 'Gemma08*';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
