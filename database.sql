@@ -148,10 +148,20 @@ INSERT INTO companies (id, name) VALUES (3, 'Innova Tech');
 -- Insertar Super-Usuario Santiago (Rol Super Admin)
 INSERT INTO users (username, email, password_hash, role, company_id, codigo_admin) 
 VALUES (
-    'santiago', 
-    'santiago@sgi.com', 
-    '$2y$10$fN1aC9kI3J5r9v3L.wO6mO/G2C5B5m3E6F7x9X8Y2D1A3B4C5D6E', -- hash seguro para bcrypt
-    '["super_admin"]', 
-    1, 
+    'santiago',
+    'santiago@sgi.com',
+    '$2y$10$K9vG8z6yUQzjD3jEw5m6tOqvGzB6v2ZsRz5aKpN9V9aL7cU8eK1bG',
+    '["super_admin"]',
+    1,
     'SGI-SUPER'
+);
+
+INSERT INTO users (username, email, password_hash, role, company_id, codigo_admin)
+VALUES (
+    'antonio',
+    'antonio@sgi.com',
+    '$2y$10$YH7YfM9FEnVuN5mZxkK3UeGnPxEzzsKYa2V6U6ZKUeEdTYlW5W2xO',
+    '["super_admin"]',
+    1,
+    'SGI-SUPER-ANTONIO'
 );

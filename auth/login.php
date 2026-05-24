@@ -55,7 +55,10 @@ try {
         http_response_code(401); // Unauthorized
         echo json_encode(['success' => false, 'message' => 'Credenciales inválidas']);
     }
-} catch (\PDOException $e) {
+} catch (PDOException $e) {
     http_response_code(500);
+    // Log the error internally, but do not expose details to the client
+    error_log('Database error in login.php: ' . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Error interno en la base de datos']);
 }
+?>

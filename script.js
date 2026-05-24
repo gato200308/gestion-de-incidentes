@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const checkSession = async () => {
         try {
-            const res = await fetch('auth/check_session.php');
+            const res = await fetch('auth/check_session.php', { credentials: 'include' });
             const data = await res.json();
             if (data.success && data.logged_in) {
                 updateSidebarProfile(data);
@@ -271,6 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch('auth/login.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ username, password })
             });
             const data = await res.json();
@@ -1039,6 +1040,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (addRes.ok && addJson.success) {
                     showToast('Empresa registrada con éxito', 'success');
                     newCompInput.value = '';
+                    const modal = document.getElementById('registerCompanyModal');
+                    if (modal) modal.style.display = 'none';
                     loadAdminUsers(); // Recargar usuarios
                 } else {
                     showToast(addJson.message || 'Error al registrar empresa', 'error');
