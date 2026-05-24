@@ -1,10 +1,10 @@
 <?php
 // db_connect.php
 
-$host = '127.0.0.1';
-$db = 'gestion_incidentes';
-$user = getenv('DB_USER') ?: 'root'; // Usuario por defecto de XAMPP
-$pass = getenv('DB_PASS') ?: '0525';     // Contraseña por defecto de XAMPP
+$host = 'localhost';
+$db = 'u9708588862_incidentes1';
+$user = 'u9708588862_santiago1';
+$pass = 'Gemma08*';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
