@@ -11,13 +11,14 @@ $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
 $options = [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES => false, // Importante para seguridad contra Inyecciones SQL (ISO 27001)
+    PDO::ATTR_EMULATE_PREPARES => false,
 ];
 
+$pdo = null;
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
-    // Para entornos de producción (ISO 27001) no se debe mostrar el error real de DB.
-    // Como esto es un proyecto de prueba, lo dejaremos visible en el error_log
-    error_log($e->getMessage());
+    error_log('DB Error: ' . $e->getMessage());
+    http_response_code(500);
+    die('Database connection failed');
 }
