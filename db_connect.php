@@ -18,5 +18,12 @@ $pdo = null;
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
-    error_log('DB Error: ' . $e->getMessage());
+    @ob_clean();
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'logged_in' => false,
+        'message' => 'DB Connection Error: ' . $e->getMessage()
+    ]);
+    exit();
 }
