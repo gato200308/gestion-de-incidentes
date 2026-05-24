@@ -1,7 +1,7 @@
 <?php
 // db_connect.php
 
-$host = '127.0.0.1';
+$host = 'localhost';
 $db = 'u9708588862_incidentes1';
 $user = 'u9708588862_santiago1';
 $pass = 'Gemma08*';
