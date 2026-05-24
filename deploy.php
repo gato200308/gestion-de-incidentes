@@ -40,20 +40,23 @@ try {
 
     // Descargar el ZIP del repositorio
     $zipUrl = 'https://github.com/gato200308/gestion-de-incidentes/archive/refs/heads/main.zip';
-    $zipFile = '/tmp/gestion-incidentes-main.zip';
+    $zipFile = __DIR__ . '/temp_deploy.zip';
     
     writeLog('Descargando: ' . $zipUrl);
     
-    $zipContent = @file_get_contents($zipUrl, false, stream_context_create([
-        'http' => ['timeout' => 30]
-    ]));
+    $ch = curl_init($zipUrl);
+    $fp = fopen($zipFile, 'w+');
+    curl_setopt($ch, CURLOPT_FILE, $fp);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 50);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // A veces Hostinger tiene problemas con los certs locales
+    curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    fclose($fp);
     
-    if ($zipContent === false) {
-        throw new Exception('No se pudo descargar el repositorio');
-    }
-    
-    if (!file_put_contents($zipFile, $zipContent)) {
-        throw new Exception('No se pudo escribir el archivo ZIP');
+    if ($httpCode != 200) {
+        throw new Exception('No se pudo descargar el repositorio (HTTP ' . $httpCode . ')');
     }
     
     writeLog('✓ ZIP descargado (' . filesize($zipFile) . ' bytes)');
@@ -64,8 +67,8 @@ try {
         throw new Exception('No se pudo abrir el ZIP');
     }
     
-    // Crear directorio temporal
-    $tmpDir = '/tmp/gestion-incidentes-extract';
+    // Crear directorio temporal en la ruta actual
+    $tmpDir = __DIR__ . '/tmp_extract';
     @mkdir($tmpDir, 0755, true);
     
     $zip->extractTo($tmpDir);
