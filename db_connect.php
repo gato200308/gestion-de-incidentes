@@ -4,7 +4,7 @@
 $host = 'localhost';
 $db = 'u9708588862_incidentes1';
 $user = 'u9708588862_santiago1';
-$pass = 'Gemma08*';
+$pass = 'Santiago2026!';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
