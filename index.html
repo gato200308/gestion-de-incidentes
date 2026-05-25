@@ -258,21 +258,31 @@
                         </div>
                     </div>
 
-                    <!-- Fila 2: Checklist de Controles ISO -->
+                    <!-- Fila 2: Checklist de Controles ISO (SoA) -->
                     <div class="card glass-card">
-                        <div class="card-header"><h4><i class="bi bi-table"></i> Checklist de Controles ISO 27001</h4></div>
-                        <div class="table-container">
+                        <div class="card-header d-flex-between">
+                            <h4><i class="bi bi-table"></i> Declaración de Aplicabilidad (SoA)</h4>
+                            <div class="d-flex gap-2">
+                                <select id="soaContextSelector" class="filter-select">
+                                    <option value="Tecnologia">Tecnología / TI</option>
+                                    <option value="Salud">Salud / Hospitales</option>
+                                    <option value="Finanzas">Finanzas / Banca</option>
+                                </select>
+                                <button class="btn-primary btn-sm" onclick="autoFillSoA()"><i class="bi bi-magic"></i> Autocompletar (IA)</button>
+                            </div>
+                        </div>
+                        <div class="table-container mt-3">
                             <table class="modern-table">
                                 <thead>
                                     <tr>
-                                        <th>Control / Categoría (ISO 27001)</th>
-                                        <th>Estado Actual</th>
-                                        <th>Última Revisión</th>
+                                        <th>Control ISO 27001</th>
+                                        <th class="text-center">¿Aplica?</th>
+                                        <th>Justificación / Estado</th>
                                         <th>Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody id="implementationBody">
-                                    <!-- Inyectado desde el Excel -->
+                                    <!-- Inyectado por JS -->
                                 </tbody>
                             </table>
                         </div>

@@ -441,36 +441,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- MODULE: IMPLEMENTACIÓN --- //
+    // --- MODULE: IMPLEMENTACIÓN (SoA) --- //
+    const isoCategories = [
+        "A.5 Políticas de Seguridad", "A.6 Organización de la Información", "A.7 Recursos humanos",
+        "A.8 Gestión de activos", "A.9 Control de acceso", "A.10 Encriptación", "A.11 Seguridad física",
+        "A.12 Seguridad en la operación", "A.13 Comunicaciones", "A.14 Desarrollo de sistemas",
+        "A.15 Relación con proveedores", "A.16 Gestión de incidentes", "A.17 Continuidad del negocio", "A.18 Cumplimiento"
+    ];
+
+    // Variables globales para el SoA
+    let currentSoAState = {};
+    
     const loadImplementationList = async () => {
         const body = document.getElementById('implementationBody');
         body.innerHTML = '<tr><td colspan="4" class="text-center">Cargando controles...</td></tr>';
-        const categories = [
-            "Documentos Generales", "Control de documentos", "Valoración y tratamiento de riesgos",
-            "Concientización y Comunicación", "Auditoría interna", "Acciones correctivas",
-            "Políticas de Seguridad", "Organización de la Información", "Recursos humanos",
-            "Gestión de activos", "Control de acceso", "Encriptación", "Seguridad física",
-            "Seguridad en la operación", "Comunicaciones", "Desarrollo de sistemas",
-            "Relación con proveedores", "Gestión de incidentes", "Continuidad del negocio", "Cumplimiento"
-        ];
+        
         try {
             const res = await fetch(`${API_URL}?module=implementation`);
             const savedState = await res.json();
-            const dates = savedState._dates || {};
-            body.innerHTML = categories.map(cat => {
-                const status = savedState[cat] || 'Pendiente';
-                const date = dates[cat] ? dates[cat].substring(0,10) : '-';
-                return `<tr>
-                    <td><strong>${cat}</strong></td>
-                    <td><span class="status-badge status-${status.toLowerCase().replace(' ','-')}">${status}</span></td>
-                    <td>${date}</td>
-                    <td><select onchange="updateImplStatus('${cat}', this.value)" class="filter-select">
-                        <option value="Pendiente" ${status==='Pendiente'?'selected':''}>Pendiente</option>
-                        <option value="En Proceso" ${status==='En Proceso'?'selected':''}>En Proceso</option>
-                        <option value="Cumplido" ${status==='Cumplido'?'selected':''}>Cumplido</option>
-                    </select></td>
-                </tr>`;
-            }).join('');
+            currentSoAState = savedState || {};
+            
+            renderSoATable();
         } catch (e) {
             console.error("Error loading implementation list:", e);
             showToast('Error cargando implementación', 'error');
@@ -478,19 +469,138 @@ document.addEventListener('DOMContentLoaded', () => {
         loadImplMeetings();
     };
 
+    const renderSoATable = () => {
+        const body = document.getElementById('implementationBody');
+        
+        body.innerHTML = isoCategories.map((cat, index) => {
+            const data = currentSoAState[cat] || { status: 'Pendiente', applies: true, justification: '' };
+            // Retrocompatibilidad con DB anterior que solo guardaba un string:
+            const status = typeof data === 'string' ? data : (data.status || 'Pendiente');
+            const applies = data.applies !== false;
+            const justif = data.justification || '';
+            const isExcluded = !applies;
+            
+            return `<tr class="${isExcluded ? 'bg-light text-muted' : ''}">
+                <td><strong>${cat}</strong></td>
+                <td class="text-center">
+                    <div class="form-check form-switch d-inline-block">
+                        <input class="form-check-input" type="checkbox" role="switch" id="switch_${index}" 
+                            ${applies ? 'checked' : ''} onchange="toggleSoAApplies('${cat}', this.checked)">
+                    </div>
+                </td>
+                <td>
+                    ${isExcluded 
+                        ? `<span class="text-muted small"><i class="bi bi-info-circle"></i> Excluido: ${justif}</span>` 
+                        : `<span class="status-badge status-${status.toLowerCase().replace(' ','-')}">${status}</span>
+                           ${justif ? `<br><small class="text-muted mt-1 d-block">${justif}</small>` : ''}`
+                    }
+                </td>
+                <td>
+                    <select onchange="updateImplStatus('${cat}', this.value)" class="filter-select" ${isExcluded ? 'disabled' : ''}>
+                        <option value="Pendiente" ${status==='Pendiente'?'selected':''}>Pendiente</option>
+                        <option value="En Proceso" ${status==='En Proceso'?'selected':''}>En Proceso</option>
+                        <option value="Cumplido" ${status==='Cumplido'?'selected':''}>Cumplido</option>
+                    </select>
+                </td>
+            </tr>`;
+        }).join('');
+    };
+
+    globalThis.toggleSoAApplies = (cat, applies) => {
+        if (!currentSoAState[cat] || typeof currentSoAState[cat] === 'string') {
+            currentSoAState[cat] = { status: typeof currentSoAState[cat] === 'string' ? currentSoAState[cat] : 'Pendiente' };
+        }
+        currentSoAState[cat].applies = applies;
+        
+        if (!applies) {
+            const just = prompt(`Justificación obligatoria (ISO 27001) para excluir el control ${cat}:`, "No aplica al contexto de la organización");
+            currentSoAState[cat].justification = just || "Excluido manualmente";
+        } else {
+            currentSoAState[cat].justification = "";
+        }
+        
+        renderSoATable();
+        saveSoAState();
+    };
+
     globalThis.updateImplStatus = async (cat, status) => {
+        if (!currentSoAState[cat] || typeof currentSoAState[cat] === 'string') {
+            currentSoAState[cat] = { applies: true, justification: '' };
+        }
+        currentSoAState[cat].status = status;
+        renderSoATable();
+        saveSoAState();
+        showToast(`"${cat}" → ${status}`, 'success');
+    };
+
+    const saveSoAState = async () => {
         try {
             await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ module: 'implementation', state: { [cat]: status } })
+                body: JSON.stringify({ module: 'implementation', state: currentSoAState, admin_id: document.body.dataset.userId })
             });
-            showToast(`"${cat}" → ${status}`, 'success');
-            loadImplementationList();
         } catch (e) {
-            console.error("Error updating impl status:", e);
-            showToast('Error al actualizar', 'error');
+            console.error("Error saving SoA:", e);
         }
+    };
+
+    globalThis.autoFillSoA = () => {
+        const sector = document.getElementById('soaContextSelector').value;
+        showToast(`Analizando contexto organizacional para sector: ${sector}...`, 'success');
+        
+        setTimeout(() => {
+            isoCategories.forEach(cat => {
+                if (!currentSoAState[cat] || typeof currentSoAState[cat] === 'string') {
+                    currentSoAState[cat] = { status: typeof currentSoAState[cat] === 'string' ? currentSoAState[cat] : 'Pendiente', applies: true };
+                }
+                
+                // --- Lógica Simulación IA (Plantillas de Sector) ---
+                if (sector === 'Tecnologia') {
+                    if (cat.includes('A.11 Seguridad física')) {
+                        currentSoAState[cat].applies = false;
+                        currentSoAState[cat].justification = "Excluido: Operación 100% Cloud (AWS), sin centro de datos físico local.";
+                    } else if (cat.includes('A.10 Encriptación') || cat.includes('A.14 Desarrollo')) {
+                        currentSoAState[cat].applies = true;
+                        currentSoAState[cat].justification = "Control Crítico: Requerido por arquitectura SaaS multitenant.";
+                        currentSoAState[cat].status = "En Proceso";
+                    } else {
+                        currentSoAState[cat].applies = true;
+                        currentSoAState[cat].justification = "";
+                    }
+                } 
+                else if (sector === 'Salud') {
+                    if (cat.includes('A.10 Encriptación') || cat.includes('A.9 Control de acceso')) {
+                        currentSoAState[cat].applies = true;
+                        currentSoAState[cat].justification = "Mandatorio: Cumplimiento de leyes de Historias Clínicas (HIPAA).";
+                        currentSoAState[cat].status = "En Proceso";
+                    } else if (cat.includes('A.11 Seguridad física')) {
+                        currentSoAState[cat].applies = true;
+                        currentSoAState[cat].justification = "Mandatorio: Control de acceso a archivos físicos en clínicas.";
+                    } else {
+                        currentSoAState[cat].applies = true;
+                        currentSoAState[cat].justification = "";
+                    }
+                }
+                else if (sector === 'Finanzas') {
+                    if (cat.includes('A.18 Cumplimiento')) {
+                        currentSoAState[cat].applies = true;
+                        currentSoAState[cat].justification = "Mandatorio: Normativas PCI-DSS y Superintendencia Financiera.";
+                        currentSoAState[cat].status = "En Proceso";
+                    } else if (cat.includes('A.14 Desarrollo')) {
+                        currentSoAState[cat].applies = false;
+                        currentSoAState[cat].justification = "Excluido: El desarrollo de software está 100% tercerizado.";
+                    } else {
+                        currentSoAState[cat].applies = true;
+                        currentSoAState[cat].justification = "";
+                    }
+                }
+            });
+            
+            renderSoATable();
+            saveSoAState();
+            showToast('✅ Declaración de Aplicabilidad (SoA) autogenerada con éxito.', 'success');
+        }, 1500); // Simulamos "análisis de IA"
     };
 
     const loadImplMeetings = async () => {
