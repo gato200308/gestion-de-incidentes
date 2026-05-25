@@ -259,19 +259,10 @@
                     </div>
 
                     <!-- Fila 2: Checklist de Controles ISO (SoA) -->
-                    <div class="card glass-card">
-                        <div class="card-header d-flex-between">
-                            <h4><i class="bi bi-table"></i> Declaración de Aplicabilidad (SoA)</h4>
-                            <div class="d-flex gap-2">
-                                <select id="soaContextSelector" class="filter-select">
-                                    <option value="Tecnologia">Tecnología / TI</option>
-                                    <option value="Salud">Salud / Hospitales</option>
-                                    <option value="Finanzas">Finanzas / Banca</option>
-                                </select>
-                                <button class="btn-primary btn-sm" onclick="autoFillSoA()"><i class="bi bi-magic"></i> Autocompletar (IA)</button>
-                            </div>
-                        </div>
-                        <div class="table-container mt-3">
+                    <div id="sectorInfo" class="text-muted small mb-2"></div>
+        <button id="filterSectorBtn" class="btn-primary btn-sm" onclick="filterSoABySector()">
+            <i class="bi bi-funnel"></i> Filtrar por sector
+        </button>                        <div class="table-container mt-3">
                             <table class="modern-table">
                                 <thead>
                                     <tr>
