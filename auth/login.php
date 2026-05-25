@@ -67,4 +67,3 @@ try {
     error_log('Database error in login.php: ' . $e->getMessage());
     echo json_encode(['success' => false, 'message' => 'Error interno en la base de datos']);
 }
-?>

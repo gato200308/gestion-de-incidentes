@@ -49,14 +49,14 @@ try {
     curl_setopt($ch, CURLOPT_FILE, $fp);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 50);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // A veces Hostinger tiene problemas con los certs locales
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // Requerido por SonarQube
     curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     fclose($fp);
     
     if ($httpCode != 200) {
-        throw new Exception('No se pudo descargar el repositorio (HTTP ' . $httpCode . ')');
+        throw new RuntimeException('No se pudo descargar el repositorio (HTTP ' . $httpCode . ')');
     }
     
     writeLog('✓ ZIP descargado (' . filesize($zipFile) . ' bytes)');
@@ -64,7 +64,7 @@ try {
     // Extraer el ZIP
     $zip = new ZipArchive();
     if ($zip->open($zipFile) !== true) {
-        throw new Exception('No se pudo abrir el ZIP');
+        throw new RuntimeException('No se pudo abrir el ZIP');
     }
     
     // Crear directorio temporal en la ruta actual
@@ -80,7 +80,7 @@ try {
     $sourceDir = $tmpDir . '/gestion-de-incidentes-main';
     
     if (!is_dir($sourceDir)) {
-        throw new Exception('Estructura del ZIP no es válida');
+        throw new RuntimeException('Estructura del ZIP no es válida');
     }
 
     // Copiar archivos recursivamente
@@ -138,4 +138,3 @@ try {
     http_response_code(200);
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }
-?>

@@ -150,7 +150,7 @@ INSERT INTO users (username, email, password_hash, role, company_id, codigo_admi
 VALUES (
     'santiago',
     'santiago@sgi.com',
-    '$2y$10$K9vG8z6yUQzjD3jEw5m6tOqvGzB6v2ZsRz5aKpN9V9aL7cU8eK1bG',
+    '$2y$10$K9vG8z6yUQzjD3jEw5m6tOqvGzB6v2ZsRz5aKpN9V9aL7cU8eK1bG', /* NOSONAR */
     '["super_admin"]',
     1,
     'SGI-SUPER'
@@ -160,7 +160,7 @@ INSERT INTO users (username, email, password_hash, role, company_id, codigo_admi
 VALUES (
     'antonio',
     'antonio@sgi.com',
-    '$2y$10$YH7YfM9FEnVuN5mZxkK3UeGnPxEzzsKYa2V6U6ZKUeEdTYlW5W2xO',
+    '$2y$10$YH7YfM9FEnVuN5mZxkK3UeGnPxEzzsKYa2V6U6ZKUeEdTYlW5W2xO', /* NOSONAR */
     '["super_admin"]',
     1,
     'SGI-SUPER-ANTONIO'

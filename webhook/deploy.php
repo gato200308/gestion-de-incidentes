@@ -29,4 +29,3 @@ if (isset($event['ref']) && $event['ref'] === 'refs/heads/main') {
     http_response_code(200);
     echo 'OK';
 }
-?>
